@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { STAFF_LIST, CATEGORIES, PRODUCTS } from '../data';
 import { BigButton } from '../components/BigButton';
+import { CameraInput } from '../components/CameraInput';
 import { Send } from 'lucide-react';
 
 export default function Inbound() {
@@ -11,6 +12,7 @@ export default function Inbound() {
 
     const [quantity, setQuantity] = useState('');
     const [lotNo, setLotNo] = useState('');
+    const [imageData, setImageData] = useState(null); // 画像データ
 
     const handleSubmit = async () => {
         if (!selectedStaff) return alert('担当者を選んでください');
@@ -25,10 +27,12 @@ export default function Inbound() {
                 type: 'IN',
                 staff: selectedStaff,
                 name: selectedProduct.name,
+                fullName: selectedProduct.fullName, // 正式名称も保存
                 productId: selectedProduct.id,
                 category: selectedProduct.category,
                 quantity: parseInt(quantity),
-                lotNo: lotNo
+                lotNo: lotNo,
+                imageData // 画像データ(Base64)
             };
 
             await axios.post('/api/items', data);
@@ -38,6 +42,8 @@ export default function Inbound() {
             setQuantity('');
             setLotNo('');
             setSelectedProduct(null);
+            setImageData(null);
+
         } catch (error) {
             console.error(error);
             alert('エラーが発生しました');
@@ -100,6 +106,7 @@ export default function Inbound() {
                 <div>
                     <label className="block text-sm font-bold text-gray-500 mb-1">選択中の商品</label>
                     <div className="text-xl font-bold">{selectedProduct?.name || '未選択'}</div>
+                    {selectedProduct && <div className="text-xs text-gray-400">{selectedProduct.fullName}</div>}
                 </div>
 
                 <div>
@@ -123,6 +130,9 @@ export default function Inbound() {
                         placeholder="L-..."
                     />
                 </div>
+
+                {/* カメラ */}
+                <CameraInput onImageCapture={setImageData} label="証憑撮影" />
 
                 <BigButton onClick={handleSubmit} variant="primary">
                     登録する
