@@ -73,7 +73,7 @@ app.post('/api/items', (req, res) => {
 
 // 4. その他のアクセスはすべてReactアプリ(index.html)を返す
 // これがないと、ページ更新したときに「Not Found」になってしまいます
-app.get('*', (req, res) => {
+app.get('(.*)', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
 });
 
