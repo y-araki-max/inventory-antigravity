@@ -1,9 +1,10 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Package, Truck, BarChart3 } from 'lucide-react';
+import { Package, Truck, BarChart3, ClipboardList } from 'lucide-react';
 import Outbound from './pages/Outbound';
 import Inbound from './pages/Inbound';
 import Aggregation from './pages/Aggregation';
+import InputDataList from './pages/InputDataList';
 
 // ナビゲーション用のボタン（画面下のメニュー）
 function NavButton({ to, icon, label }) {
@@ -34,6 +35,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Outbound />} />
             <Route path="/inbound" element={<Inbound />} />
+            <Route path="/list" element={<InputDataList />} />
             <Route path="/aggregation" element={<Aggregation />} />
           </Routes>
         </div>
@@ -42,6 +44,7 @@ function App() {
         <div className="h-20 bg-white border-t border-gray-200 flex justify-around items-center shrink-0 z-40 shadow-lg">
           <NavButton to="/" icon={<Package size={28} />} label="出庫入力" />
           <NavButton to="/inbound" icon={<Truck size={28} />} label="入庫入力" />
+          <NavButton to="/list" icon={<ClipboardList size={28} />} label="データ一覧" />
           <NavButton to="/aggregation" icon={<BarChart3 size={28} />} label="集計" />
         </div>
       </div>

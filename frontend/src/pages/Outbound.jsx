@@ -4,7 +4,7 @@ import { STAFF_LIST, CATEGORIES, PRODUCTS } from '../data';
 import { BigButton } from '../components/BigButton';
 import { NumPad } from '../components/NumPad';
 import { CameraInput } from '../components/CameraInput';
-import { Trash2, Send, ShoppingCart } from 'lucide-react';
+import { Trash2, Send, ShoppingCart, Plus, Minus, X } from 'lucide-react';
 
 export default function Outbound() {
     // 入力データ
@@ -13,6 +13,7 @@ export default function Outbound() {
     const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]);
     const [cart, setCart] = useState([]); // 送信待ちの商品リスト
     const [imageData, setImageData] = useState(null); // カメラ画像(Base64)
+    const [isCartOpen, setIsCartOpen] = useState(false); // カートドロワーの開閉
 
     // 特殊チェックボックス
     const [isStaffSale, setIsStaffSale] = useState(false);
@@ -35,13 +36,45 @@ export default function Outbound() {
     const handleQuantityConfirm = (qty) => {
         if (qty > 0 && currentProduct) {
             // カートに追加
-            setCart(prev => [...prev, {
-                ...currentProduct,
-                quantity: qty
-            }]);
+            setCart(prev => {
+                // 既に同じ商品があれば数量を加算するのではなく、別明細として追加するか、統合するか。
+                // リクエストでは「送信リストのUI改善」なので、既存ロジック（追加）を維持しつつ、
+                // リスト内で編集できるようにする。
+                return [...prev, {
+                    ...currentProduct,
+                    quantity: qty,
+                    uuid: crypto.randomUUID() // 一意なIDを付与して管理しやすくする
+                }];
+            });
+            setIsCartOpen(true); // カートを自動で開く
         }
         setIsModalOpen(false);
         setCurrentProduct(null);
+    };
+
+    // カート内の数量変更
+    const updateCartItemQuantity = (uuid, delta) => {
+        setCart(prev => prev.map(item => {
+            if (item.uuid === uuid) {
+                const newQty = item.quantity + delta;
+                return newQty > 0 ? { ...item, quantity: newQty } : item;
+            }
+            return item;
+        }));
+    };
+
+    // カートから個別削除
+    const removeCartItem = (uuid) => {
+        setCart(prev => prev.filter(item => item.uuid !== uuid));
+        if (cart.length <= 1) setIsCartOpen(false);
+    };
+
+    // 全削除
+    const clearCart = () => {
+        if (window.confirm('本当に全て削除しますか？')) {
+            setCart([]);
+            setIsCartOpen(false);
+        }
     };
 
     // チェックボックスの変更ハンドラ
@@ -92,6 +125,7 @@ export default function Outbound() {
             setBossId('');
             setIsStaffSale(false);
             setIsBossCheck(false);
+            setIsCartOpen(false);
 
         } catch (error) {
             console.error(error);
@@ -103,42 +137,35 @@ export default function Outbound() {
     const filteredProducts = PRODUCTS.filter(p => p.category === selectedCategory);
 
     return (
-        <div className="pb-28"> {/* 下部のカートボタン表示用に余白を確保 */}
+        <div className="pb-24 bg-gray-50 min-h-screen">
             {/* ヘッダーエリア */}
             <div className="bg-white p-4 shadow-sm sticky top-0 z-30">
-                <div className="flex justify-between items-center mb-2">
-                    <div className="text-gray-500 font-bold">{today}</div>
-                    {/* カートバッジ (上部にも表示) */}
-                    {cart.length > 0 && (
-                        <div className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-md animate-bounce">
-                            リスト入力中: {cart.length}件
-                        </div>
-                    )}
+                {/* 上段：日付とBOSS IDを横並び */}
+                <div className="flex items-center gap-4 mb-3">
+                    <div className="text-gray-500 font-bold whitespace-nowrap">{today}</div>
+                    <div className="flex-1 flex items-center gap-2">
+                        <label className="text-xs text-gray-400 font-bold whitespace-nowrap">BOSS</label>
+                        <input
+                            type="text"
+                            value={bossId}
+                            onChange={(e) => setBossId(e.target.value)}
+                            className="w-full text-xl font-bold border-b-2 border-gray-300 outline-none p-1"
+                            placeholder="番号"
+                        />
+                    </div>
                 </div>
 
-                {/* BOSS入力 */}
-                <div className="mb-4">
-                    <label className="text-xs text-gray-400 font-bold">BOSS</label>
-                    <input
-                        type="text"
-                        value={bossId}
-                        onChange={(e) => setBossId(e.target.value)}
-                        className="w-full text-2xl font-bold border-b-2 border-gray-300 outline-none p-1"
-                        placeholder="番号を入力"
-                    />
-                </div>
-
-                {/* スタッフ選択 (2列配置) */}
-                <div className="mb-2 grid grid-cols-2 gap-4">
+                {/* スタッフ選択 (2列配置のコンテナ) */}
+                <div className="grid grid-cols-2 gap-4 mb-2">
                     {/* 梱包スタッフ */}
                     <div>
                         <div className="text-xs text-gray-400 font-bold mb-1">梱包スタッフ</div>
-                        <div className="flex flex-col gap-2">
+                        <div className="grid grid-cols-2 gap-2">
                             {STAFF_LIST.PACKING.map(name => (
                                 <button
                                     key={name}
                                     onClick={() => setSelectedStaff(name)}
-                                    className={`px-3 py-2 rounded-lg font-bold text-sm border 
+                                    className={`px-1 py-2 rounded-lg font-bold text-xs border truncate
                     ${selectedStaff === name ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200'}
                   `}
                                 >
@@ -151,12 +178,12 @@ export default function Outbound() {
                     {/* CS部 */}
                     <div>
                         <div className="text-xs text-gray-400 font-bold mb-1">CS部</div>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="grid grid-cols-2 gap-2">
                             {STAFF_LIST.CS.map(name => (
                                 <button
                                     key={name}
                                     onClick={() => setSelectedStaff(name)}
-                                    className={`px-3 py-2 rounded-lg font-bold text-sm border 
+                                    className={`px-1 py-2 rounded-lg font-bold text-xs border truncate
                     ${selectedStaff === name ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200'}
                   `}
                                 >
@@ -168,15 +195,14 @@ export default function Outbound() {
                 </div>
 
                 {/* 特殊チェック & カメラ */}
-                <div className="mt-4 grid grid-cols-2 gap-4">
-                    {/* チェックボックス */}
-                    <div className="space-y-3 p-2 bg-gray-50 rounded-lg">
+                <div className="flex gap-4 mt-2">
+                    <div className="flex-1 flex gap-4 items-center bg-gray-50 px-3 rounded-lg">
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input
                                 type="checkbox"
                                 checked={isStaffSale}
                                 onChange={(e) => handleCheckChange('staff', e.target.checked)}
-                                className="w-6 h-6"
+                                className="w-5 h-5"
                             />
                             <span className="font-bold text-sm">社販</span>
                         </label>
@@ -185,25 +211,26 @@ export default function Outbound() {
                                 type="checkbox"
                                 checked={isBossCheck}
                                 onChange={(e) => handleCheckChange('boss', e.target.checked)}
-                                className="w-6 h-6"
+                                className="w-5 h-5"
                             />
-                            <span className="font-bold text-sm">BOSSチェック</span>
+                            <span className="font-bold text-sm">BOSS</span>
                         </label>
                     </div>
 
-                    {/* カメラ */}
-                    <CameraInput onImageCapture={setImageData} label="伝票・商品撮影" />
+                    <div className="w-1/3">
+                        <CameraInput onImageCapture={setImageData} label="撮影" />
+                    </div>
                 </div>
             </div>
 
             {/* カテゴリタブ */}
-            <div className="flex overflow-x-auto gap-2 p-2 bg-gray-100 sticky top-[380px] z-20 shadow-inner">
+            <div className="flex overflow-x-auto gap-2 p-2 bg-gray-100 sticky top-[210px] z-20 shadow-inner">
                 {CATEGORIES.map(cat => (
                     <button
                         key={cat}
                         onClick={() => setSelectedCategory(cat)}
-                        className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap shadow-sm
-              ${selectedCategory === cat ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}
+                        className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap shadow-sm transition-all
+              ${selectedCategory === cat ? 'bg-blue-600 text-white scale-105' : 'bg-white text-gray-600'}
             `}
                     >
                         {cat}
@@ -217,7 +244,7 @@ export default function Outbound() {
                     <BigButton
                         key={product.id}
                         variant="secondary"
-                        className="h-20 text-lg leading-tight break-words" // 文字サイズ調整
+                        className="h-20 text-lg leading-tight break-words"
                         onClick={() => handleProductClick(product)}
                     >
                         {product.name}
@@ -225,31 +252,94 @@ export default function Outbound() {
                 ))}
             </div>
 
-            {/* 固定フッターカート (リストに入っているときのみ表示) */}
-            {cart.length > 0 && (
-                <div className="fixed bottom-20 left-0 right-0 p-4 bg-white border-t border-gray-200 shadow-[0_-5px_15px_rgba(0,0,0,0.1)] z-40">
-                    <div className="flex justify-between items-center mb-2">
-                        <h3 className="font-bold text-gray-600 flex items-center gap-2">
-                            <ShoppingCart size={20} />
-                            送信リスト ({cart.length}件)
-                        </h3>
-                        <button onClick={() => setCart([])} className="text-xs text-red-400 font-bold">全て削除</button>
-                    </div>
+            {/* カートフローティングボタン (閉じているとき) */}
+            {!isCartOpen && cart.length > 0 && (
+                <button
+                    onClick={() => setIsCartOpen(true)}
+                    className="fixed bottom-24 right-4 bg-blue-600 text-white p-4 rounded-full shadow-lg z-40 animate-bounce flex items-center gap-2"
+                >
+                    <ShoppingCart size={24} />
+                    <span className="font-bold text-lg">{cart.length}</span>
+                </button>
+            )}
 
-                    {/* カートの中身プレビュー（最新3件） */}
-                    <div className="space-y-1 mb-3 max-h-24 overflow-y-auto text-sm">
-                        {cart.map((item, index) => (
-                            <div key={index} className="flex justify-between border-b border-gray-50 py-1">
-                                <span>{item.name}</span>
-                                <span className="font-bold">{item.quantity}</span>
-                            </div>
-                        ))}
-                    </div>
+            {/* カートドロワー (スライドアップ) */}
+            {isCartOpen && (
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}>
+                    <div
+                        className="bg-white w-full max-w-md rounded-t-2xl shadow-2xl flex flex-col max-h-[85vh]"
+                        onClick={e => e.stopPropagation()} // ドロワー内部クリックで閉じないように
+                    >
+                        {/* ドロワーヘッダー */}
+                        <div className="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-2xl">
+                            <h3 className="font-bold text-lg flex items-center gap-2 text-gray-700">
+                                <ShoppingCart size={20} />
+                                送信リスト
+                                <span className="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">{cart.length}</span>
+                            </h3>
+                            <button onClick={() => setIsCartOpen(false)} className="p-2 hover:bg-gray-200 rounded-full">
+                                <X size={24} className="text-gray-500" />
+                            </button>
+                        </div>
 
-                    <BigButton onClick={handleSubmit} variant="primary" className="py-3 text-xl">
-                        <Send className="inline mr-2" />
-                        まとめて送信
-                    </BigButton>
+                        {/* カートリスト (スクロール領域) */}
+                        <div className="overflow-y-auto p-4 space-y-3 flex-1">
+                            {cart.length === 0 ? (
+                                <p className="text-center text-gray-400 py-8">リストは空です</p>
+                            ) : (
+                                cart.map((item) => (
+                                    <div key={item.uuid} className="bg-white border-2 border-gray-100 rounded-xl p-3 shadow-sm flex flex-col gap-2 relative">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <div className="font-bold text-lg text-gray-800">{item.name}</div>
+                                                <div className="text-xs text-gray-400">{item.fullName}</div>
+                                            </div>
+                                            <button
+                                                onClick={() => removeCartItem(item.uuid)}
+                                                className="text-gray-400 hover:text-red-500 p-1"
+                                            >
+                                                <Trash2 size={20} />
+                                            </button>
+                                        </div>
+
+                                        <div className="flex items-center justify-between bg-gray-50 rounded-lg p-2 mt-1">
+                                            <span className="text-xs font-bold text-gray-500">数量</span>
+                                            <div className="flex items-center gap-3">
+                                                <button
+                                                    onClick={() => updateCartItemQuantity(item.uuid, -1)}
+                                                    className="w-8 h-8 flex items-center justify-center bg-white border rounded-full shadow-sm active:bg-gray-100"
+                                                >
+                                                    <Minus size={16} />
+                                                </button>
+                                                <span className="text-xl font-bold text-blue-800 w-8 text-center">{item.quantity}</span>
+                                                <button
+                                                    onClick={() => updateCartItemQuantity(item.uuid, 1)}
+                                                    className="w-8 h-8 flex items-center justify-center bg-white border rounded-full shadow-sm active:bg-gray-100"
+                                                >
+                                                    <Plus size={16} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        {/* ドロワーフッター (アクション) */}
+                        <div className="p-4 border-t bg-white safe-area-bottom">
+                            <BigButton onClick={handleSubmit} variant="primary" className="py-4 text-xl w-full mb-3 shadow-lg">
+                                <Send className="inline mr-2" />
+                                まとめて送信
+                            </BigButton>
+
+                            <button
+                                onClick={clearCart}
+                                className="w-full text-red-400 text-sm font-bold py-2 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                                全て削除
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -263,3 +353,4 @@ export default function Outbound() {
         </div>
     );
 }
+
