@@ -79,6 +79,7 @@ app.get('*', (req, res) => {
 
 // サーバーを起動
 app.listen(PORT, () => {
+    console.log(`Inventory Server v1.1.0 started`);
     console.log(`サーバーがポート ${PORT} で起動しました`);
     console.log(`確認用URL: http://localhost:${PORT}`);
 });

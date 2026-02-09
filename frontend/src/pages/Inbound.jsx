@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { STAFF_LIST, CATEGORIES, PRODUCTS } from '../data';
 import { BigButton } from '../components/BigButton';
-import { CameraInput } from '../components/CameraInput';
-import { Send } from 'lucide-react';
+import { storage } from '../utils/storage';
 
 export default function Inbound() {
     const [selectedStaff, setSelectedStaff] = useState('');
@@ -12,7 +11,6 @@ export default function Inbound() {
 
     const [quantity, setQuantity] = useState('');
     const [lotNo, setLotNo] = useState('');
-    const [imageData, setImageData] = useState(null); // 画像データ
 
     const handleSubmit = async () => {
         if (!selectedStaff) return alert('担当者を選んでください');
@@ -23,6 +21,7 @@ export default function Inbound() {
 
         try {
             const data = {
+                uuid: crypto.randomUUID(), // 一意なID
                 date: new Date().toISOString(),
                 type: 'IN',
                 staff: selectedStaff,
@@ -32,17 +31,20 @@ export default function Inbound() {
                 category: selectedProduct.category,
                 quantity: parseInt(quantity),
                 lotNo: lotNo,
-                imageData // 画像データ(Base64)
             };
 
+            // API送信
             await axios.post('/api/items', data);
+
+            // localStorageに保存
+            storage.saveItem(data);
+
             alert('入庫しました！');
 
             // クリア
             setQuantity('');
             setLotNo('');
             setSelectedProduct(null);
-            setImageData(null);
 
         } catch (error) {
             console.error(error);
@@ -130,9 +132,6 @@ export default function Inbound() {
                         placeholder="L-..."
                     />
                 </div>
-
-                {/* カメラ */}
-                <CameraInput onImageCapture={setImageData} label="証憑撮影" />
 
                 <BigButton onClick={handleSubmit} variant="primary">
                     登録する

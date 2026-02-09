@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import { STAFF_LIST, CATEGORIES } from '../data';
+import { Loader2 } from 'lucide-react';
+import { storage } from '../utils/storage';
 
 export default function Aggregation() {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]); // 今日
+    const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);   // 今日
 
     // 画面が表示されたときにデータを取得
     useEffect(() => {
@@ -11,9 +15,11 @@ export default function Aggregation() {
     }, []);
 
     const fetchData = async () => {
+        setLoading(true);
         try {
-            const res = await axios.get('/api/items');
-            setItems(res.data);
+            // localStorageから全データ取得
+            const data = storage.getItems();
+            setItems(data);
         } catch (error) {
             console.error('データ取得エラー', error);
         } finally {

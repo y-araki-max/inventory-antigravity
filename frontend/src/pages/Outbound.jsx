@@ -4,7 +4,8 @@ import { STAFF_LIST, CATEGORIES, PRODUCTS } from '../data';
 import { BigButton } from '../components/BigButton';
 import { NumPad } from '../components/NumPad';
 import { CameraInput } from '../components/CameraInput';
-import { Trash2, Send, ShoppingCart, Plus, Minus, X } from 'lucide-react';
+import { Trash2, Send, ShoppingCart, Plus, Minus, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { storage } from '../utils/storage';
 
 export default function Outbound() {
     // 入力データ
@@ -14,6 +15,9 @@ export default function Outbound() {
     const [cart, setCart] = useState([]); // 送信待ちの商品リスト
     const [imageData, setImageData] = useState(null); // カメラ画像(Base64)
     const [isCartOpen, setIsCartOpen] = useState(false); // カートドロワーの開閉
+
+    // ヘッダーの折りたたみ状態
+    const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
 
     // 特殊チェックボックス
     const [isStaffSale, setIsStaffSale] = useState(false);
@@ -47,6 +51,12 @@ export default function Outbound() {
                 }];
             });
             setIsCartOpen(true); // カートを自動で開く
+
+            // BOSS番号と担当者が入力されていればヘッダーを折りたたむ
+            // This logic is now handled proactively by checkAndCollapseHeader
+            // if (bossId && selectedStaff && !isHeaderCollapsed) {
+            //     setIsHeaderCollapsed(true);
+            // }
         }
         setIsModalOpen(false);
         setCurrentProduct(null);
@@ -88,6 +98,15 @@ export default function Outbound() {
         if (type === 'boss') setIsBossCheck(checked);
     };
 
+    // ヘッダーの自動折りたたみロジック
+    const checkAndCollapseHeader = (newBossId, newStaff) => {
+        const id = newBossId !== undefined ? newBossId : bossId;
+        const staff = newStaff !== undefined ? newStaff : selectedStaff;
+        if (id && staff) {
+            setIsHeaderCollapsed(true);
+        }
+    };
+
     // 送信処理
     const handleSubmit = async () => {
         if (!bossId) return alert('BOSSを入力してください');
@@ -102,6 +121,7 @@ export default function Outbound() {
 
             for (const item of cart) {
                 const data = {
+                    uuid: item.uuid || crypto.randomUUID(), // IDがあれば使う
                     date: timestamp,
                     type: 'OUT',
                     bossId,
@@ -115,7 +135,12 @@ export default function Outbound() {
                     isBossCheck,
                     imageData // 画像データ(Base64) ※容量注意
                 };
+
+                // API送信
                 await axios.post('/api/items', data);
+
+                // localStorageに保存
+                storage.saveItem(data);
             }
 
             alert('送信しました！');
@@ -126,6 +151,7 @@ export default function Outbound() {
             setIsStaffSale(false);
             setIsBossCheck(false);
             setIsCartOpen(false);
+            setIsHeaderCollapsed(false); // 入力が終わったらヘッダーを展開して次の入力に備える
 
         } catch (error) {
             console.error(error);
@@ -139,92 +165,101 @@ export default function Outbound() {
     return (
         <div className="pb-24 bg-gray-50 min-h-screen">
             {/* ヘッダーエリア */}
-            <div className="bg-white p-4 shadow-sm sticky top-0 z-30">
-                {/* 上段：日付とBOSS IDを横並び */}
-                <div className="flex items-center gap-4 mb-3">
-                    <div className="text-gray-500 font-bold whitespace-nowrap">{today}</div>
-                    <div className="flex-1 flex items-center gap-2">
-                        <label className="text-xs text-gray-400 font-bold whitespace-nowrap">BOSS</label>
-                        <input
-                            type="text"
-                            value={bossId}
-                            onChange={(e) => setBossId(e.target.value)}
-                            className="w-full text-xl font-bold border-b-2 border-gray-300 outline-none p-1"
-                            placeholder="番号"
-                        />
-                    </div>
-                </div>
+            <div className="bg-white p-4 shadow-sm sticky top-0 z-30 transition-all duration-300">
 
-                {/* スタッフ選択 (2列配置のコンテナ) */}
-                <div className="grid grid-cols-2 gap-4 mb-2">
-                    {/* 梱包スタッフ */}
+                {/* 折りたたみ時の簡易表示 */}
+                {isHeaderCollapsed ? (
+                    <div
+                        className="flex justify-between items-center bg-blue-50 p-2 rounded-lg cursor-pointer"
+                        onClick={() => setIsHeaderCollapsed(false)}
+                    >
+                        <div className="flex flex-col">
+                            <div className="text-xs text-blue-600 font-bold">{today}</div>
+                            <div className="font-bold text-gray-800">
+                                BOSS: {bossId || '未入力'} / Staff: {selectedStaff || '未選択'}
+                            </div>
+                        </div>
+                        <ChevronDown className="text-blue-500" />
+                    </div>
+                ) : (
+                    /* 展開時のフル入力フォーム */
                     <div>
-                        <div className="text-xs text-gray-400 font-bold mb-1">梱包スタッフ</div>
-                        <div className="grid grid-cols-2 gap-2">
-                            {STAFF_LIST.PACKING.map(name => (
-                                <button
-                                    key={name}
-                                    onClick={() => setSelectedStaff(name)}
-                                    className={`px-1 py-2 rounded-lg font-bold text-xs border truncate
-                    ${selectedStaff === name ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200'}
-                  `}
-                                >
-                                    {name}
+                        <div className="flex justify-between items-start mb-2">
+                            <div className="flex items-center gap-4 flex-1">
+                                <div className="text-gray-500 font-bold whitespace-nowrap">{today}</div>
+                                <div className="flex-1 flex items-center gap-2">
+                                    <label className="text-xs text-gray-400 font-bold whitespace-nowrap">BOSS</label>
+                                    <input
+                                        type="text"
+                                        value={bossId}
+                                        onChange={(e) => {
+                                            setBossId(e.target.value);
+                                            checkAndCollapseHeader(e.target.value, undefined);
+                                        }}
+                                        onBlur={() => checkAndCollapseHeader(undefined, undefined)}
+                                        className="w-full text-xl font-bold border-b-2 border-gray-300 outline-none p-1"
+                                        placeholder="番号"
+                                    />
+                                </div>
+                            </div>
+                            {/* 手動折りたたみボタン */}
+                            {(bossId || selectedStaff) && (
+                                <button onClick={() => setIsHeaderCollapsed(true)} className="text-gray-400 p-1">
+                                    <ChevronUp />
                                 </button>
-                            ))}
+                            )}
+                        </div>
+
+                        {/* スタッフ選択 (2列配置のコンテナ) */}
+                        <div className="grid grid-cols-2 gap-4 mb-2">
+                            {/* 梱包スタッフ */}
+                            <div>
+                                <div className="text-xs text-gray-400 font-bold mb-1">梱包スタッフ</div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {STAFF_LIST.PACKING.map(name => (
+                                        <button
+                                            key={name}
+                                            onClick={() => {
+                                                setSelectedStaff(name);
+                                                checkAndCollapseHeader(undefined, name);
+                                            }}
+                                            className={`px-1 py-2 rounded-lg font-bold text-xs border truncate
+                            ${selectedStaff === name ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200'}
+                          `}
+                                        >
+                                            {name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* CS部 */}
+                            <div>
+                                <div className="text-xs text-gray-400 font-bold mb-1">CS部</div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {STAFF_LIST.CS.map(name => (
+                                        <button
+                                            key={name}
+                                            onClick={() => {
+                                                setSelectedStaff(name);
+                                                checkAndCollapseHeader(undefined, name);
+                                            }}
+                                            className={`px-1 py-2 rounded-lg font-bold text-xs border truncate
+                            ${selectedStaff === name ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200'}
+                          `}
+                                        >
+                                            {name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     </div>
-
-                    {/* CS部 */}
-                    <div>
-                        <div className="text-xs text-gray-400 font-bold mb-1">CS部</div>
-                        <div className="grid grid-cols-2 gap-2">
-                            {STAFF_LIST.CS.map(name => (
-                                <button
-                                    key={name}
-                                    onClick={() => setSelectedStaff(name)}
-                                    className={`px-1 py-2 rounded-lg font-bold text-xs border truncate
-                    ${selectedStaff === name ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200'}
-                  `}
-                                >
-                                    {name}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                {/* 特殊チェック & カメラ */}
-                <div className="flex gap-4 mt-2">
-                    <div className="flex-1 flex gap-4 items-center bg-gray-50 px-3 rounded-lg">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={isStaffSale}
-                                onChange={(e) => handleCheckChange('staff', e.target.checked)}
-                                className="w-5 h-5"
-                            />
-                            <span className="font-bold text-sm">社販</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={isBossCheck}
-                                onChange={(e) => handleCheckChange('boss', e.target.checked)}
-                                className="w-5 h-5"
-                            />
-                            <span className="font-bold text-sm">BOSS</span>
-                        </label>
-                    </div>
-
-                    <div className="w-1/3">
-                        <CameraInput onImageCapture={setImageData} label="撮影" />
-                    </div>
-                </div>
+                )}
             </div>
 
             {/* カテゴリタブ */}
-            <div className="flex overflow-x-auto gap-2 p-2 bg-gray-100 sticky top-[210px] z-20 shadow-inner">
+            <div className={`flex overflow-x-auto gap-2 p-2 bg-gray-100 sticky z-20 shadow-inner transition-all ${isHeaderCollapsed ? 'top-[70px]' : 'top-[210px]'}`}>
                 {CATEGORIES.map(cat => (
                     <button
                         key={cat}
@@ -267,7 +302,7 @@ export default function Outbound() {
             {isCartOpen && (
                 <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}>
                     <div
-                        className="bg-white w-full max-w-md rounded-t-2xl shadow-2xl flex flex-col max-h-[85vh]"
+                        className="bg-white w-full max-w-md rounded-t-2xl shadow-2xl flex flex-col max-h-[90vh]"
                         onClick={e => e.stopPropagation()} // ドロワー内部クリックで閉じないように
                     >
                         {/* ドロワーヘッダー */}
@@ -325,9 +360,39 @@ export default function Outbound() {
                             )}
                         </div>
 
-                        {/* ドロワーフッター (アクション) */}
-                        <div className="p-4 border-t bg-white safe-area-bottom">
-                            <BigButton onClick={handleSubmit} variant="primary" className="py-4 text-xl w-full mb-3 shadow-lg">
+                        {/* ドロワーフッター (アクション) - ここにカメラとチェックボックスを移動 */}
+                        <div className="p-4 border-t bg-gray-50 safe-area-bottom space-y-4">
+
+                            {/* 特殊チェック & カメラ (ドロワー内に移動) */}
+                            <div className="flex gap-4 items-center">
+                                <div className="flex-1 flex gap-3 items-center bg-white border p-2 rounded-lg shadow-sm">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={isStaffSale}
+                                            onChange={(e) => handleCheckChange('staff', e.target.checked)}
+                                            className="w-5 h-5 accent-blue-600"
+                                        />
+                                        <span className="font-bold text-xs whitespace-nowrap">社販</span>
+                                    </label>
+                                    <div className="h-4 w-[1px] bg-gray-300"></div>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={isBossCheck}
+                                            onChange={(e) => handleCheckChange('boss', e.target.checked)}
+                                            className="w-5 h-5 accent-orange-500"
+                                        />
+                                        <span className="font-bold text-xs whitespace-nowrap">BOSS</span>
+                                    </label>
+                                </div>
+
+                                <div className="w-1/3">
+                                    <CameraInput onImageCapture={setImageData} label="撮影" />
+                                </div>
+                            </div>
+
+                            <BigButton onClick={handleSubmit} variant="primary" className="py-4 text-xl w-full shadow-lg">
                                 <Send className="inline mr-2" />
                                 まとめて送信
                             </BigButton>
