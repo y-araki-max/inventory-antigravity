@@ -85,7 +85,7 @@ export default function InputDataList() {
                         <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b">
                             <tr>
                                 <th className="px-1 py-2 w-10 text-center whitespace-nowrap">種別</th>
-                                <th className="px-1 py-2 w-16 whitespace-nowrap">ID/担当者</th>
+                                <th className="px-1 py-2 w-16 whitespace-nowrap">ID / 担当者</th>
                                 <th className="px-1 py-2 w-auto">注文内容</th>
                                 <th className="px-1 py-2 w-8 text-center whitespace-nowrap">社販</th>
                                 <th className="px-1 py-2 w-8 text-center whitespace-nowrap">BOSS</th>

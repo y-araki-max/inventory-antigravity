@@ -177,7 +177,7 @@ export default function Outbound() {
                         <div className="flex flex-col">
                             <div className="text-xs text-blue-600 font-bold">{today}</div>
                             <div className="font-bold text-gray-800">
-                                BOSS: {bossId || '未入力'} / Staff: {selectedStaff || '未選択'}
+                                ID: {bossId || '未入力'} / 担当者: {selectedStaff || '未選択'}
                             </div>
                         </div>
                         <ChevronDown className="text-blue-500" />
