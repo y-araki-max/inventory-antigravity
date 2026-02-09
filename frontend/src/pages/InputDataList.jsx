@@ -68,7 +68,7 @@ export default function InputDataList() {
                                 <th className="px-2 py-3 text-center">削除</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className="">
                             {items.map((item, index) => {
                                 // BOSS IDが変わるタイミングで太線を入れる
                                 const isNewGroup = index > 0 && items[index - 1].bossId !== item.bossId;

@@ -148,6 +148,7 @@ export default function Outbound() {
             setCart([]);
             setImageData(null);
             setBossId('');
+            setSelectedStaff('');
             setIsStaffSale(false);
             setIsBossCheck(false);
             setIsCartOpen(false);
