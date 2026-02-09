@@ -1,3 +1,4 @@
+// Master Data v1.2
 // スタッフリスト
 export const STAFF_LIST = {
     PACKING: ['高塚', '鈴木', '山川'],
