@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { STAFF_LIST, CATEGORIES } from '../data';
+import { STAFF_LIST, CATEGORIES, PRODUCTS } from '../data';
 import { Loader2, Calendar } from 'lucide-react';
 import { storage } from '../utils/storage';
 
@@ -62,19 +62,18 @@ export default function Aggregation() {
         return acc;
     }, {});
 
-    // カテゴリ順 -> 名前順でソートして配列にする
+    // マスタデータの順番通りにソートして配列にする
     const sortedAggregated = Object.values(aggregated).sort((a, b) => {
-        const catA = CATEGORIES.indexOf(a.category);
-        const catB = CATEGORIES.indexOf(b.category);
+        // PRODUCTS配列内でのインデックスを探す
+        // name（略称）でマッチング
+        const indexA = PRODUCTS.findIndex(p => p.name === a.name);
+        const indexB = PRODUCTS.findIndex(p => p.name === b.name);
 
-        // カテゴリインデックスが見つからない場合は後ろへ
-        const indexA = catA === -1 ? 999 : catA;
-        const indexB = catB === -1 ? 999 : catB;
+        // 見つからない場合は後ろへ
+        const safeIndexA = indexA === -1 ? 9999 : indexA;
+        const safeIndexB = indexB === -1 ? 9999 : indexB;
 
-        if (indexA !== indexB) {
-            return indexA - indexB;
-        }
-        return a.name.localeCompare(b.name);
+        return safeIndexA - safeIndexB;
     });
 
     return (
