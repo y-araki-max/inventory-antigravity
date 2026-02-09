@@ -266,7 +266,7 @@ export default function Outbound() {
                         key={cat}
                         onClick={() => setSelectedCategory(cat)}
                         className={`px-4 py-2 rounded-lg font-bold whitespace-nowrap shadow-sm transition-all
-              ${selectedCategory === cat ? 'bg-blue-600 text-white scale-105' : 'bg-white text-gray-600'}
+              ${selectedCategory === cat ? 'bg-blue-600 text-white scale-105' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}
             `}
                     >
                         {cat}
