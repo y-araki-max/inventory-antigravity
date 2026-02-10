@@ -96,6 +96,7 @@ export default function InputDataList() {
                             {items.map((item, index) => {
                                 // BOSS IDが変わるタイミングで太線を入れる
                                 const isNewGroup = index > 0 && items[index - 1].bossId !== item.bossId;
+                                const borderClass = isNewGroup ? 'border-t-4 border-gray-400' : '';
                                 // サンプル品の場合はグレー背景
                                 const rowBg = item.isSample ? 'bg-gray-200 hover:bg-gray-300' : 'hover:bg-gray-50';
 
