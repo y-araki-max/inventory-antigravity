@@ -50,6 +50,7 @@ function App() {
           <NavButton to="/outbound" icon={<Package size={24} />} label="出庫" />
           <NavButton to="/inbound" icon={<Truck size={24} />} label="入庫" />
           <NavButton to="/inventory" icon={<Calculator size={24} />} label="在庫表" />
+          <NavButton to="/aggregation" icon={<BarChart3 size={24} />} label="集計" />
           <NavButton to="/list" icon={<ClipboardList size={24} />} label="一覧" />
         </div>
       </div>

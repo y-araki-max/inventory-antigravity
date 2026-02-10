@@ -1,116 +1,161 @@
 import React, { useEffect, useState } from 'react';
-import { STAFF_LIST, CATEGORIES, PRODUCTS } from '../data';
-import { Loader2, Calendar } from 'lucide-react';
+import { PRODUCTS } from '../data';
+import { Loader2, Calendar, AlertCircle } from 'lucide-react';
 import { storage } from '../utils/storage';
 
 export default function Aggregation() {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); // 今日
+    const [error, setError] = useState(null);
+    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
-    // 画面が表示されたときにデータを取得
     useEffect(() => {
         fetchData();
-    }, [selectedDate]); // 日付が変わったら再取得
+    }, [selectedDate]);
 
     const fetchData = async () => {
         setLoading(true);
+        setError(null);
         try {
-            // localStorageから全データ取得
             const data = storage.getItems();
+            if (!Array.isArray(data)) {
+                throw new Error('データ形式が不正です');
+            }
 
-            // 選択した日付でフィルタリング
             const filtered = data.filter(item => {
-                if (!item.date) return false;
-                return new Date(item.date).toISOString().split('T')[0] === selectedDate;
+                if (!item || !item.date) return false;
+                // Add robust date parsing if needed, but simple string comparison is usually safe for ISO dates
+                return item.date.startsWith(selectedDate);
             });
 
             setItems(filtered);
         } catch (error) {
             console.error('データ取得エラー', error);
+            setError('データの読み込みに失敗しました');
         } finally {
             setLoading(false);
         }
     };
 
-    // 総合計出庫数を計算
+    // Terminology Normalizer
+    const normalize = (str) => {
+        if (!str) return '';
+        if (str === '特別作戦') return 'オプショナル';
+        if (str === '有細胞子') return '有胞子';
+        if (str === 'エネルギー') return 'エナジー';
+        if (str.includes('いん')) return str.replace('いん', 'アミノ酸'); // Context dependent, but safe for known typo
+        return str;
+    };
+
+    // Total Calculation
     const totalOutbound = items
-        .filter(item => item.type === 'OUT')
+        .filter(item => item.type === 'OUT') // Includes 'Sample' as they are type='OUT'
         .reduce((sum, item) => sum + parseInt(item.quantity || 0), 0);
 
-    // データを集計（商品ごとに合計数を計算）
+    // Aggregation Logic
     const aggregated = items.reduce((acc, item) => {
-        const key = item.productId || item.name; // IDがあればIDで、なければ名前でまとめる
+        try {
+            // Use normalized names for grouping if needed, or just display
+            // Better to stick to product ID if available, but fallback to normalized Name
+            const productId = item.productId;
+            const name = normalize(item.name);
+            const key = productId || name;
 
-        if (!acc[key]) {
-            acc[key] = {
-                name: item.name,
-                category: item.category || 'その他', // カテゴリも保持（ソート用）
-                inCount: 0,
-                outCount: 0
-            };
+            if (!acc[key]) {
+                acc[key] = {
+                    productId: productId,
+                    name: name,
+                    category: normalize(item.category || 'その他'),
+                    inCount: 0,
+                    outCount: 0
+                };
+            }
+
+            const qty = parseInt(item.quantity || 0);
+            if (item.type === 'IN') {
+                acc[key].inCount += qty;
+            } else if (item.type === 'OUT') {
+                acc[key].outCount += qty;
+            }
+        } catch (e) {
+            console.warn('Skipping malformed item', item);
         }
-
-        // 数量を加算
-        const qty = parseInt(item.quantity || 0);
-        if (item.type === 'IN') {
-            acc[key].inCount += qty;
-        } else if (item.type === 'OUT') {
-            acc[key].outCount += qty;
-        }
-
         return acc;
     }, {});
 
-    // マスタデータの順番通りにソートして配列にする
+    // Sorting
     const sortedAggregated = Object.values(aggregated).sort((a, b) => {
-        // PRODUCTS配列内でのインデックスを探す
-        // name（略称）でマッチング
-        const indexA = PRODUCTS.findIndex(p => p.name === a.name);
-        const indexB = PRODUCTS.findIndex(p => p.name === b.name);
+        // Try to match with Master Data
+        const getIndex = (item) => {
+            if (item.productId) {
+                const p = PRODUCTS.find(p => p.id == item.productId); // Loose equality for string/number match
+                if (p) return PRODUCTS.indexOf(p);
+            }
+            // Fallback to name match
+            const pIndex = PRODUCTS.findIndex(p => p.name === item.name || p.fullName === item.name);
+            return pIndex !== -1 ? pIndex : 9999;
+        };
 
-        // 見つからない場合は後ろへ
-        const safeIndexA = indexA === -1 ? 9999 : indexA;
-        const safeIndexB = indexB === -1 ? 9999 : indexB;
-
-        return safeIndexA - safeIndexB;
+        return getIndex(a) - getIndex(b);
     });
 
+    if (error) {
+        return (
+            <div className="p-8 text-center text-red-500">
+                <AlertCircle className="mx-auto mb-2" />
+                {error}
+                <button onClick={fetchData} className="mt-4 bg-gray-200 px-4 py-2 rounded">再試行</button>
+            </div>
+        );
+    }
+
     return (
-        <div className="pb-24 p-4">
+        <div className="pb-24 p-4 min-h-screen bg-gray-50">
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-xl font-bold">在庫集計</h1>
+                <h1 className="text-xl font-bold text-gray-800">在庫集計</h1>
                 <div className="flex items-center gap-2">
                     <div className="relative">
                         <input
                             type="date"
                             value={selectedDate}
                             onChange={(e) => setSelectedDate(e.target.value)}
-                            className="pl-8 pr-2 py-1 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="pl-8 pr-2 py-2 bg-white border border-gray-300 rounded-lg text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
-                        <Calendar size={14} className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <Calendar size={16} className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     </div>
-                    <button onClick={fetchData} className="text-sm bg-gray-200 px-3 py-1 rounded-full text-gray-600">更新</button>
                 </div>
             </div>
 
-            {/* 総合計表示 */}
-            <div className="bg-blue-600 text-white rounded-xl p-4 shadow-lg mb-6 text-center">
-                <div className="text-sm opacity-90 mb-1">本日の総合計出庫数</div>
-                <div className="text-4xl font-bold">{totalOutbound}<span className="text-lg ml-1 font-normal">個</span></div>
+            {/* Total Outbound */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl p-6 shadow-xl mb-8 text-center transform transition-transform hover:scale-[1.02]">
+                <div className="text-sm font-medium opacity-90 mb-2">本日の総合計出庫数</div>
+                <div className="text-5xl font-bold tracking-tight">
+                    {totalOutbound}
+                    <span className="text-xl ml-2 font-normal opacity-80">個</span>
+                </div>
+                <div className="text-xs mt-2 opacity-75">※サンプル出庫を含む</div>
             </div>
 
             {loading ? (
-                <div className="flex justify-center py-10">
-                    <Loader2 className="animate-spin" />
+                <div className="flex justify-center py-20">
+                    <Loader2 className="animate-spin text-blue-500" size={32} />
                 </div>
             ) : (
                 <div className="space-y-3">
                     {sortedAggregated.map((data, index) => (
-                        <div key={index} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
-                            <div className="font-bold text-lg text-gray-800">{data.name}</div>
-                            <div className="flex gap-3">
-                                <div className="bg-red-50 px-4 py-2 rounded-lg text-center min-w-[80px]">
+                        <div key={index} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between transition-colors hover:bg-gray-50">
+                            <div>
+                                <div className="font-bold text-lg text-gray-800">{data.name}</div>
+                                <div className="text-xs text-gray-400">{data.category}</div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                {data.inCount > 0 && (
+                                    <div className="text-right">
+                                        <div className="text-[10px] text-green-500 font-bold">入庫</div>
+                                        <div className="text-lg font-bold text-green-600">{data.inCount}</div>
+                                    </div>
+                                )}
+                                <div className="bg-red-50 px-4 py-2 rounded-lg text-center min-w-[70px]">
                                     <div className="text-[10px] text-red-500 font-bold mb-0.5">出庫</div>
                                     <div className="text-xl font-bold text-red-700 leading-none">{data.outCount}</div>
                                 </div>
@@ -119,7 +164,10 @@ export default function Aggregation() {
                     ))}
 
                     {sortedAggregated.length === 0 && (
-                        <p className="text-center text-gray-400 mt-10">この日のデータはありません</p>
+                        <div className="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
+                            <p className="text-gray-400">この日のデータはありません</p>
+                            <p className="text-xs text-gray-300 mt-2">日付を変更するか、データを入力をしてください</p>
+                        </div>
                     )}
                 </div>
             )}

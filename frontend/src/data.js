@@ -109,3 +109,13 @@ export const PRODUCTS = [
     { id: 992, category: "カスタム", name: "村上 様", fullName: "村上 様" }
 ];
 
+export const normalizeTerm = (term) => {
+    if (!term) return '';
+    if (term === '特別作戦') return 'オプショナル';
+    if (term === '受け取り') return '入庫';
+    if (term === '有細胞子') return '有胞子';
+    if (term === 'エネルギー') return 'エナジー';
+    if (term.includes('いん')) return term.replace('いん', 'アミノ酸');
+    return term;
+};
+

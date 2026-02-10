@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Check, Loader2, Trash2, Calendar } from 'lucide-react';
 import { storage } from '../utils/storage';
+import { normalizeTerm } from '../data';
 
 export default function InputDataList() {
     const [items, setItems] = useState([]);
@@ -15,10 +16,14 @@ export default function InputDataList() {
         setLoading(true);
         try {
             const data = storage.getItems();
+            if (!Array.isArray(data)) {
+                setItems([]);
+                return;
+            }
 
             // 日付でフィルタリング
             const filtered = data.filter(item => {
-                if (!item.date) return false;
+                if (!item || !item.date) return false;
                 const itemDate = new Date(item.date).toISOString().split('T')[0];
                 return itemDate === selectedDate;
             });
@@ -28,6 +33,7 @@ export default function InputDataList() {
             setItems(sorted);
         } catch (error) {
             console.error('データ取得エラー', error);
+            setItems([]);
         } finally {
             setLoading(false);
         }
@@ -43,8 +49,10 @@ export default function InputDataList() {
     // 時間のみフォーマット (HH:mm)
     const formatTime = (dateStr) => {
         if (!dateStr) return '-';
-        const d = new Date(dateStr);
-        return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+        try {
+            const d = new Date(dateStr);
+            return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+        } catch (e) { return '-'; }
     };
 
     return (
@@ -100,6 +108,8 @@ export default function InputDataList() {
                                 // サンプル品の場合はグレー背景
                                 const rowBg = item.isSample ? 'bg-gray-200 hover:bg-gray-300' : 'hover:bg-gray-50';
 
+                                const normalizedName = normalizeTerm(item.name);
+
                                 return (
                                     <tr key={index} className={`${rowBg} ${borderClass}`}>
                                         {/* 種別 & 時間 */}
@@ -121,7 +131,7 @@ export default function InputDataList() {
 
                                         {/* 注文内容 */}
                                         <td className="px-1 py-2 break-words align-top">
-                                            <div className="font-bold text-gray-900 leading-tight">{item.name}</div>
+                                            <div className="font-bold text-gray-900 leading-tight">{normalizedName}</div>
                                             <div className="text-[10px] text-gray-400">{item.fullName}</div>
                                             <div className="text-xs mt-0.5">
                                                 <span className="font-bold">x {item.quantity}</span>

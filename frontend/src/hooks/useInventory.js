@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { PRODUCTS, CATEGORIES } from '../data';
+import { PRODUCTS, CATEGORIES, normalizeTerm } from '../data';
 import { storage } from '../utils/storage';
 import { parseInventoryCSV } from '../utils/csvParser';
 import multiCsv from '../assets/csv/multi_202601.csv?raw'; // Raw import
@@ -52,7 +52,10 @@ export const useInventory = () => {
 
                 // Process App Activity
                 newActivity.forEach(item => {
-                    if (item.productId === pid || item.name === product.name) {
+                    const itemName = normalizeTerm(item.name);
+                    // Match by ID (loose equality for string/number) OR Name
+                    // Using normalized name allows matching "エネルギー" to "エナジー"
+                    if (item.productId == pid || itemName === product.name) {
                         const qty = parseInt(item.quantity || 0);
                         const isOut = item.type === 'OUT';
                         const isSample = item.isSample;
