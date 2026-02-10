@@ -21,7 +21,9 @@ export default function Outbound() {
 
     // 特殊チェックボックス
     const [isStaffSale, setIsStaffSale] = useState(false);
+
     const [isBossCheck, setIsBossCheck] = useState(false);
+    const [isSample, setIsSample] = useState(false);
 
     // モーダル用
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -90,12 +92,14 @@ export default function Outbound() {
     // チェックボックスの変更ハンドラ
     const handleCheckChange = (type, checked) => {
         if (checked) {
-            if (!window.confirm(`${type === 'staff' ? '社販' : 'BOSSチェック'}として処理しますか？`)) {
+            if (!window.confirm(`${type === 'staff' ? '社販' : type === 'sample' ? 'サンプル品' : 'BOSSチェック'}として処理しますか？`)) {
                 return; // キャンセルなら何もしない
             }
         }
         if (type === 'staff') setIsStaffSale(checked);
+
         if (type === 'boss') setIsBossCheck(checked);
+        if (type === 'sample') setIsSample(checked);
     };
 
     // ヘッダーの自動折りたたみロジック
@@ -133,6 +137,8 @@ export default function Outbound() {
                     quantity: item.quantity,
                     isStaffSale,
                     isBossCheck,
+
+                    isSample,
                     imageData // 画像データ(Base64) ※容量注意
                 };
 
@@ -150,7 +156,9 @@ export default function Outbound() {
             setBossId('');
             setSelectedStaff('');
             setIsStaffSale(false);
+
             setIsBossCheck(false);
+            setIsSample(false);
             setIsCartOpen(false);
             setIsHeaderCollapsed(false); // 入力が終わったらヘッダーを展開して次の入力に備える
 
@@ -385,6 +393,16 @@ export default function Outbound() {
                                             className="w-5 h-5 accent-orange-500"
                                         />
                                         <span className="font-bold text-xs whitespace-nowrap">BOSS</span>
+                                    </label>
+                                    <div className="h-4 w-[1px] bg-gray-300"></div>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={isSample}
+                                            onChange={(e) => handleCheckChange('sample', e.target.checked)}
+                                            className="w-5 h-5 accent-gray-500"
+                                        />
+                                        <span className="font-bold text-xs whitespace-nowrap">サンプル</span>
                                     </label>
                                 </div>
 

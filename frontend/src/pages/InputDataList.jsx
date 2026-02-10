@@ -80,7 +80,7 @@ export default function InputDataList() {
                     <p className="text-xs mt-2">{selectedDate}</p>
                 </div>
             ) : (
-                <div className="overflow-x-auto rounded-lg shadow-sm border border-gray-200 bg-white">
+                <div className="w-full max-w-5xl mx-auto overflow-x-auto rounded-lg shadow-sm border border-gray-200 bg-white">
                     <table className="w-full text-xs text-left layer-table table-fixed">
                         <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b">
                             <tr>
@@ -96,10 +96,11 @@ export default function InputDataList() {
                             {items.map((item, index) => {
                                 // BOSS IDが変わるタイミングで太線を入れる
                                 const isNewGroup = index > 0 && items[index - 1].bossId !== item.bossId;
-                                const borderClass = isNewGroup ? 'border-t-4 border-gray-400' : '';
+                                // サンプル品の場合はグレー背景
+                                const rowBg = item.isSample ? 'bg-gray-200 hover:bg-gray-300' : 'hover:bg-gray-50';
 
                                 return (
-                                    <tr key={index} className={`hover:bg-gray-50 ${borderClass}`}>
+                                    <tr key={index} className={`${rowBg} ${borderClass}`}>
                                         {/* 種別 & 時間 */}
                                         <td className="px-1 py-2 text-center align-top">
                                             <div className={`text-[10px] font-bold px-1 py-0.5 rounded w-fit mx-auto mb-1 ${item.type === 'OUT' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
