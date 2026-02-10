@@ -1,10 +1,12 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Package, Truck, BarChart3, ClipboardList } from 'lucide-react';
+import { Package, Truck, BarChart3, ClipboardList, Home as HomeIcon, Calculator } from 'lucide-react';
+import Home from './pages/Home';
 import Outbound from './pages/Outbound';
 import Inbound from './pages/Inbound';
 import Aggregation from './pages/Aggregation';
 import InputDataList from './pages/InputDataList';
+import InventoryTable from './pages/InventoryTable';
 
 // ナビゲーション用のボタン（画面下のメニュー）
 function NavButton({ to, icon, label }) {
@@ -15,11 +17,11 @@ function NavButton({ to, icon, label }) {
   return (
     <Link
       to={to}
-      className={`flex flex-col items-center justify-center p-4 w-full h-full transition-colors ${isActive ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-100'
+      className={`flex flex-col items-center justify-center p-2 w-full h-full transition-colors ${isActive ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-100'
         }`}
     >
-      <div className="mb-1">{icon}</div>
-      <span className="text-xs font-bold">{label}</span>
+      <div className="mb-0.5">{icon}</div>
+      <span className="text-[10px] font-bold">{label}</span>
     </Link>
   );
 }
@@ -33,19 +35,22 @@ function App() {
         {/* メインエリア（ここに各ページが表示されます） */}
         <div className="flex-1 overflow-auto">
           <Routes>
-            <Route path="/" element={<Outbound />} />
+            <Route path="/" element={<Home />} />
+            <Route path="/outbound" element={<Outbound />} />
             <Route path="/inbound" element={<Inbound />} />
             <Route path="/list" element={<InputDataList />} />
             <Route path="/aggregation" element={<Aggregation />} />
+            <Route path="/inventory" element={<InventoryTable />} />
           </Routes>
         </div>
 
         {/* 画面下のメニューバー */}
-        <div className="h-20 bg-white border-t border-gray-200 flex justify-around items-center shrink-0 z-40 shadow-lg">
-          <NavButton to="/" icon={<Package size={28} />} label="出庫入力" />
-          <NavButton to="/inbound" icon={<Truck size={28} />} label="入庫入力" />
-          <NavButton to="/list" icon={<ClipboardList size={28} />} label="データ一覧" />
-          <NavButton to="/aggregation" icon={<BarChart3 size={28} />} label="集計" />
+        <div className="h-16 bg-white border-t border-gray-200 flex justify-around items-center shrink-0 z-40 shadow-lg safe-area-bottom">
+          <NavButton to="/" icon={<HomeIcon size={24} />} label="ホーム" />
+          <NavButton to="/outbound" icon={<Package size={24} />} label="出庫" />
+          <NavButton to="/inbound" icon={<Truck size={24} />} label="入庫" />
+          <NavButton to="/inventory" icon={<Calculator size={24} />} label="在庫表" />
+          <NavButton to="/list" icon={<ClipboardList size={24} />} label="一覧" />
         </div>
       </div>
     </BrowserRouter>
