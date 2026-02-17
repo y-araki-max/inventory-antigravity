@@ -140,17 +140,13 @@ export const useInventory = () => {
                 }
 
                 calculatedInventory[pid] = {
-                    ...product,
-                    ...csvItem,
-                    currentStock, // This is "Current Realtime Stock" calculated by the main loop (check consistency)
-                    // Actually, runningStock at the end of the loop SHOULD match currentStock if date range covers all activity.
-                    // If 'newActivity' has future dates, they might differ.
-                    // For safety, let's keep 'currentStock' as the single source of truth for the main display,
-                    // and 'dailyHistory' for the table.
+                    ...csvItem, // CSV priority low
+                    ...product, // Master Data priority high (Name, Category, ID)
+                    currentStock,
                     todayOut,
                     todaySample,
                     monthOut,
-                    dailyHistory // Attach the new history
+                    dailyHistory
                 };
             });
 

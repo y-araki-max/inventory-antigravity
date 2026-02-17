@@ -111,14 +111,31 @@ export const PRODUCTS = [
 
 export const normalizeTerm = (term) => {
     if (!term) return '';
-    if (term === '特別作戦') return 'オプショナル';
-    if (term === '受け取り' || term === '受取' || term === '受け取り入力') return '出庫';
+    // 完全一致または前方一致での置換
+    if (term === '特別作戦' || term === '特別作戦①') return 'オプショナル①'; // "特別作戦"単体は文脈によるが、マスタ上は①〜③ある。一旦①へ？それとも"オプショナル"カテゴリ自体？
+    // User said: "特別作戦 ⇒ オプショナル（※特別作戦②も「オプショナル②」に修正）"
+    // CATEGORIES has "オプショナル①", "オプショナル②", "オプショナル③".
+    // If data says "特別作戦", it often maps to "オプショナル①" or just "オプショナル" if it's a rough category.
+    // Let's iterate carefully.
+
+    if (term === '特別作戦' || term === '特別作戦①') return 'オプショナル①';
+    if (term === '特別作戦②' || term === '特別作戦2') return 'オプショナル②';
+    if (term === '特別作戦③' || term === '特別作戦3') return 'オプショナル③';
+
+    // Catch-all for "特別作戦" prefix if not matched above (safety)
+    if (term.includes('特別作戦')) {
+        return term.replace('特別作戦', 'オプショナル');
+    }
+
+    if (term === '受け取り' || term === '受取' || term === '受け取り入力' || term === '受け取り入力 / 受取') return '出庫';
     if (term === '有細胞子') return '有胞子';
     if (term === 'エネルギー') return 'エナジー';
-    if (term === '質問10' || term === 'Q10') return 'Q10';
+    if (term === '質問10' || term === 'Q10' || term === '質問１０') return 'Q10';
     if (term === '競合商品') return '他社商品';
-    if (term === 'ボス' || term === 'ぼす') return 'BOSS';
+    if (term === 'ボス' || term === 'ぼす' || term === 'BOSS / Staff') return 'BOSS';
+
     if (term.includes('いん')) return term.replace('いん', 'アミノ酸');
+
     return term;
 };
 

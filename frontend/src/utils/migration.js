@@ -1,16 +1,16 @@
 import { storage } from './storage';
 import { normalizeTerm } from '../data';
 
-const MIGRATION_KEY = 'migration_v1_terms_applied';
+const MIGRATION_KEY = 'migration_v2_force_fix_terms'; // Changed key to force re-run
 
 export const runMigration = () => {
     // Check if migration already ran
     if (localStorage.getItem(MIGRATION_KEY)) {
-        console.log('Migration v1 already applied.');
+        console.log('Migration v2 already applied.');
         return;
     }
 
-    console.log('Starting data migration...');
+    console.log('Starting data migration v2 (Flexible & Aggressive)...');
     const items = storage.getItems();
     let changed = false;
 
@@ -18,9 +18,7 @@ export const runMigration = () => {
         let newItem = { ...item };
         let isItemChanged = false;
 
-        // 1. Normalize Name (e.g. エネルギー -> エナジー)
-        // normalizeTerm handles: 特別作戦->オプショナル, 競合商品->他社商品, etc.
-        // It returns the same string if no change needed.
+        // 1. Normalize Name
         const normalizedName = normalizeTerm(newItem.name);
         if (newItem.name !== normalizedName) {
             console.log(`Migrating Name: ${newItem.name} -> ${normalizedName}`);
@@ -28,14 +26,22 @@ export const runMigration = () => {
             isItemChanged = true;
         }
 
-        // 2. Normalize Category? 
-        // Categories are usually derived from products, but if stored, fix them too.
-        // normalizeTerm works on any string.
+        // 2. Normalize Category (CRITICAL: Fix "特別作戦②" etc.)
         if (newItem.category) {
-            const normalizedCat = normalizeTerm(newItem.category);
-            if (newItem.category !== normalizedCat) {
-                console.log(`Migrating Category: ${newItem.category} -> ${normalizedCat}`);
-                newItem.category = normalizedCat;
+            let cat = newItem.category;
+            // Manual overrides for specific issues reported
+            if (cat === '特別作戦' || cat === '特別作戦①') cat = 'オプショナル①';
+            else if (cat === '特別作戦②' || cat === '特別作戦2') cat = 'オプショナル②';
+            else if (cat === '特別作戦③' || cat === '特別作戦3') cat = 'オプショナル③';
+            else if (cat === '競合商品') cat = '他社商品';
+            else {
+                // Fallback to general normalizer
+                cat = normalizeTerm(cat);
+            }
+
+            if (newItem.category !== cat) {
+                console.log(`Migrating Category: ${newItem.category} -> ${cat}`);
+                newItem.category = cat;
                 isItemChanged = true;
             }
         }
