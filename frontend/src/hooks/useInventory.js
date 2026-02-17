@@ -83,11 +83,12 @@ export const useInventory = () => {
                 // Fixed range: Feb 1, 2026 to Feb 28, 2026
                 const targetYear = 2026;
                 const targetMonth = 1; // Feb (0-indexed)
-                const daysInFeb = 28; // 2026 is not leap year
+                // Dynamic days logc (Safe for any month)
+                const daysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
 
                 let runningStock = csvItem.initialStock;
 
-                for (let d = 1; d <= daysInFeb; d++) {
+                for (let d = 1; d <= daysInMonth; d++) {
                     const dateObj = new Date(targetYear, targetMonth, d);
                     const dateStr = dateObj.toISOString().split('T')[0];
 
