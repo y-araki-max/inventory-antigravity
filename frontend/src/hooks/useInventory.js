@@ -78,13 +78,79 @@ export const useInventory = () => {
                     }
                 });
 
+                // --- Daily History Calculation (Feb 2026) ---
+                // We generate a list for the entire current month (or reasonable range)
+                const dailyHistory = [];
+                // Start from Feb 1st
+                const startDate = new Date('2026-02-01T00:00:00');
+                // End at today? Or end of month? Let's go to Today + 1 or End of Feb.
+                // For "History", usually up to "Today".
+                // But user might want to see the whole month grid. Let's do the whole month of Feb 2026 for now, or dynamic.
+                // Let's rely on Today's month.
+                const now = new Date();
+                const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+
+                // If we are strictly in Feb 2026 mode as per user context:
+                const targetYear = 2026;
+                const targetMonth = 1; // 0-indexed (Feb)
+                const daysInFeb = new Date(targetYear, targetMonth + 1, 0).getDate();
+
+                let runningStock = csvItem.initialStock;
+
+                for (let d = 1; d <= daysInFeb; d++) {
+                    const dateObj = new Date(targetYear, targetMonth, d);
+                    const dateStr = dateObj.toISOString().split('T')[0];
+
+                    // Filter items for this day
+                    const dayItems = newActivity.filter(item => {
+                        return item.date.startsWith(dateStr) &&
+                            // Match Product
+                            (item.productId == pid || normalizeTerm(item.name) === product.name);
+                    });
+
+                    let dayIn = 0;
+                    let dayOut = 0;     // Sales (Non-sample)
+                    let daySample = 0;  // Samples
+
+                    dayItems.forEach(item => {
+                        const qty = parseInt(item.quantity || 0);
+                        if (item.type === 'IN') {
+                            dayIn += qty;
+                        } else if (item.type === 'OUT') {
+                            if (item.isSample) {
+                                daySample += qty;
+                            } else {
+                                dayOut += qty;
+                            }
+                        }
+                    });
+
+                    // Update Stock
+                    // Stock = Start + In - Out - Sample
+                    runningStock = runningStock + dayIn - dayOut - daySample;
+
+                    dailyHistory.push({
+                        date: dateStr,
+                        dateObj: dateObj,
+                        in: dayIn,
+                        out: dayOut,
+                        sample: daySample,
+                        stock: runningStock
+                    });
+                }
+
                 calculatedInventory[pid] = {
                     ...product,
                     ...csvItem,
-                    currentStock,
+                    currentStock, // This is "Current Realtime Stock" calculated by the main loop (check consistency)
+                    // Actually, runningStock at the end of the loop SHOULD match currentStock if date range covers all activity.
+                    // If 'newActivity' has future dates, they might differ.
+                    // For safety, let's keep 'currentStock' as the single source of truth for the main display,
+                    // and 'dailyHistory' for the table.
                     todayOut,
                     todaySample,
-                    monthOut
+                    monthOut,
+                    dailyHistory // Attach the new history
                 };
             });
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { PRODUCTS } from '../data';
+import { PRODUCTS, normalizeTerm } from '../data';
 import { Loader2, Calendar, AlertCircle } from 'lucide-react';
 import { storage } from '../utils/storage';
 
@@ -37,67 +37,52 @@ export default function Aggregation() {
         }
     };
 
-    // Terminology Normalizer
-    const normalize = (str) => {
-        if (!str) return '';
-        if (str === '特別作戦') return 'オプショナル';
-        if (str === '有細胞子') return '有胞子';
-        if (str === 'エネルギー') return 'エナジー';
-        if (str.includes('いん')) return str.replace('いん', 'アミノ酸'); // Context dependent, but safe for known typo
-        return str;
-    };
-
     // Total Calculation
     const totalOutbound = items
         .filter(item => item.type === 'OUT') // Includes 'Sample' as they are type='OUT'
         .reduce((sum, item) => sum + parseInt(item.quantity || 0), 0);
 
-    // Aggregation Logic
-    const aggregated = items.reduce((acc, item) => {
-        try {
-            // Use normalized names for grouping if needed, or just display
-            // Better to stick to product ID if available, but fallback to normalized Name
-            const productId = item.productId;
-            const name = normalize(item.name);
-            const key = productId || name;
+    // Aggregation Logic (Refactored to show ALL products)
+    const aggregated = PRODUCTS.map(product => {
+        const pid = product.id;
+        const pname = product.name;
+        const pcategory = product.category;
 
-            if (!acc[key]) {
-                acc[key] = {
-                    productId: productId,
-                    name: name,
-                    category: normalize(item.category || 'その他'),
-                    inCount: 0,
-                    outCount: 0
-                };
-            }
+        let inCount = 0;
+        let outCount = 0;
 
-            const qty = parseInt(item.quantity || 0);
-            if (item.type === 'IN') {
-                acc[key].inCount += qty;
-            } else if (item.type === 'OUT') {
-                acc[key].outCount += qty;
-            }
-        } catch (e) {
-            console.warn('Skipping malformed item', item);
-        }
-        return acc;
-    }, {});
+        // items is already filtered by date
+        items.forEach(item => {
+            // Match by ID or Name
+            const itemProductId = item.productId;
+            const itemNormalizedName = normalizeTerm(item.name);
 
-    // Sorting
-    const sortedAggregated = Object.values(aggregated).sort((a, b) => {
-        // Try to match with Master Data
-        const getIndex = (item) => {
-            if (item.productId) {
-                const p = PRODUCTS.find(p => p.id == item.productId); // Loose equality for string/number match
-                if (p) return PRODUCTS.indexOf(p);
+            // Loose equality for ID (string vs number)
+            const isMatch = (itemProductId == pid) || (itemNormalizedName === pname);
+
+            if (isMatch) {
+                const qty = parseInt(item.quantity || 0);
+                if (item.type === 'IN') {
+                    inCount += qty;
+                } else if (item.type === 'OUT') {
+                    outCount += qty;
+                }
             }
-            // Fallback to name match
-            const pIndex = PRODUCTS.findIndex(p => p.name === item.name || p.fullName === item.name);
-            return pIndex !== -1 ? pIndex : 9999;
+        });
+
+        return {
+            productId: pid,
+            name: pname,
+            category: pcategory,
+            inCount,
+            outCount
         };
-
-        return getIndex(a) - getIndex(b);
     });
+
+    // Sorting not strictly needed if we map over PRODUCTS which is already sorted, 
+    // but if we want to ensure order or if PRODUCTS order changes, we can keep it simple.
+    // Since we map PRODUCTS directly, the order is preserved as per PRODUCTS list.
+    const sortedAggregated = aggregated;
 
     if (error) {
         return (
@@ -163,12 +148,7 @@ export default function Aggregation() {
                         </div>
                     ))}
 
-                    {sortedAggregated.length === 0 && (
-                        <div className="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
-                            <p className="text-gray-400">この日のデータはありません</p>
-                            <p className="text-xs text-gray-300 mt-2">日付を変更するか、データを入力をしてください</p>
-                        </div>
-                    )}
+                    {/* Always show list, empty state handled by showing 0s */}
                 </div>
             )}
         </div>

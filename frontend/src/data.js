@@ -112,9 +112,12 @@ export const PRODUCTS = [
 export const normalizeTerm = (term) => {
     if (!term) return '';
     if (term === '特別作戦') return 'オプショナル';
-    if (term === '受け取り') return '入庫';
+    if (term === '受け取り' || term === '受取') return '入庫';
     if (term === '有細胞子') return '有胞子';
     if (term === 'エネルギー') return 'エナジー';
+    if (term === '質問10' || term === 'Q10') return 'Q10';
+    if (term === '競合商品') return '他社商品';
+    if (term === 'ボス' || term === 'ぼす') return 'BOSS';
     if (term.includes('いん')) return term.replace('いん', 'アミノ酸');
     return term;
 };

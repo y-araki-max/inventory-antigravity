@@ -90,29 +90,66 @@ export default function InventoryTable() {
 
                                                 {/* Detail Row (Accordion) */}
                                                 {isProductOpen && (
-                                                    <div className="bg-gray-50 p-3 text-xs border-t border-gray-100 grid grid-cols-2 gap-4">
-                                                        <div>
-                                                            <div className="text-gray-400 mb-1">発注点</div>
-                                                            <div className="font-bold text-gray-700">{item.reorderPoint ? item.reorderPoint.toLocaleString() : '-'}</div>
+                                                    <div className="bg-gray-50 p-3 text-xs border-t border-gray-100">
+                                                        {/* Stats Grid */}
+                                                        <div className="grid grid-cols-2 gap-4 mb-4">
+                                                            <div>
+                                                                <div className="text-gray-400 mb-1">発注点</div>
+                                                                <div className="font-bold text-gray-700">{item.reorderPoint ? item.reorderPoint.toLocaleString() : '-'}</div>
+                                                            </div>
+                                                            <div>
+                                                                <div className="text-gray-400 mb-1">今月合計出庫</div>
+                                                                <div className="font-bold text-gray-700">{item.monthOut.toLocaleString()}</div>
+                                                            </div>
+                                                            <div>
+                                                                <div className="text-gray-400 mb-1">平均出庫(CSV)</div>
+                                                                <div className="font-bold text-gray-700">{item.averageOut ? item.averageOut.toLocaleString() : '-'}</div>
+                                                            </div>
                                                         </div>
+
+                                                        {/* Daily History Table */}
                                                         <div>
-                                                            <div className="text-gray-400 mb-1">今月合計出庫</div>
-                                                            <div className="font-bold text-gray-700">{item.monthOut.toLocaleString()}</div>
-                                                        </div>
-                                                        <div>
-                                                            <div className="text-gray-400 mb-1">平均出庫(CSV)</div>
-                                                            <div className="font-bold text-gray-700">{item.averageOut ? item.averageOut.toLocaleString() : '-'}</div>
-                                                        </div>
-                                                        <div className="col-span-2">
-                                                            <div className="text-gray-400 mb-1">直近の推移 (CSV)</div>
-                                                            <div className="flex gap-2 overflow-x-auto pb-2">
-                                                                {item.history && item.history.map((h, i) => (
-                                                                    <div key={i} className="bg-white p-2 rounded border border-gray-200 min-w-[60px] text-center">
-                                                                        <div className="text-[10px] text-gray-400 whitespace-nowrap">{h.month}</div>
-                                                                        <div className="font-bold">{h.total}</div>
-                                                                    </div>
-                                                                ))}
-                                                                {(!item.history || item.history.length === 0) && <span className="text-gray-400">-</span>}
+                                                            <div className="text-gray-400 mb-2 font-bold">日別入出庫・在庫推移</div>
+                                                            <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                                                                <table className="w-full text-center whitespace-nowrap">
+                                                                    <thead className="bg-gray-100 text-gray-500 font-medium">
+                                                                        <tr>
+                                                                            <th className="px-2 py-1">日付</th>
+                                                                            <th className="px-2 py-1 text-green-600">入庫</th>
+                                                                            <th className="px-2 py-1 text-red-600">出庫</th>
+                                                                            <th className="px-2 py-1 text-gray-500">サンプル</th>
+                                                                            <th className="px-2 py-1 text-blue-600">在庫</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody className="divide-y divide-gray-100 bg-white">
+                                                                        {item.dailyHistory && item.dailyHistory.map((day, idx) => {
+                                                                            const dayOfWeek = day.dateObj.getDay(); // 0:Sun, 6:Sat
+                                                                            const isSat = dayOfWeek === 6;
+                                                                            const isSun = dayOfWeek === 0;
+
+                                                                            let rowClass = "text-gray-700";
+                                                                            if (isSat) rowClass = "bg-blue-50 text-blue-700 font-medium";
+                                                                            if (isSun) rowClass = "bg-red-50 text-red-700 font-medium";
+
+                                                                            const dateLabel = `${day.dateObj.getMonth() + 1}/${day.dateObj.getDate()} (${['日', '月', '火', '水', '木', '金', '土'][dayOfWeek]})`;
+
+                                                                            return (
+                                                                                <tr key={idx} className={rowClass}>
+                                                                                    <td className="px-2 py-1 text-left">{dateLabel}</td>
+                                                                                    <td className="px-2 py-1">{day.in > 0 ? day.in : '-'}</td>
+                                                                                    <td className="px-2 py-1">{day.out > 0 ? day.out : '-'}</td>
+                                                                                    <td className="px-2 py-1">{day.sample > 0 ? `(${day.sample})` : '-'}</td>
+                                                                                    <td className="px-2 py-1 font-bold">{day.stock.toLocaleString()}</td>
+                                                                                </tr>
+                                                                            );
+                                                                        })}
+                                                                        {(!item.dailyHistory || item.dailyHistory.length === 0) && (
+                                                                            <tr>
+                                                                                <td colSpan="5" className="px-2 py-4 text-gray-400">データがありません</td>
+                                                                            </tr>
+                                                                        )}
+                                                                    </tbody>
+                                                                </table>
                                                             </div>
                                                         </div>
                                                     </div>
