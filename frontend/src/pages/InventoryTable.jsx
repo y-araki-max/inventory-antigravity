@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useInventory } from '../hooks/useInventory';
-import { CATEGORIES } from '../data';
+import { CATEGORIES, PRODUCTS } from '../data';
 import { MapPin, Edit2, ChevronDown, ChevronUp, Calendar } from 'lucide-react';
 
 export default function InventoryTable() {
