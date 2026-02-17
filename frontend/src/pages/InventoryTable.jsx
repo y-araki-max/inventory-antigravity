@@ -1,24 +1,37 @@
 import React, { useState } from 'react';
 import { useInventory } from '../hooks/useInventory';
 import { CATEGORIES } from '../data';
-import { ChevronDown, ChevronRight, AlertTriangle, Package } from 'lucide-react';
+import { MapPin, AlertCircle, Edit2, Save, X } from 'lucide-react';
 
 export default function InventoryTable() {
-    const { inventory, loading } = useInventory();
+    const { inventory, loading, updateMemo, adjustStock } = useInventory();
     const [openCategories, setOpenCategories] = useState({});
-    const [openProducts, setOpenProducts] = useState({});
+
+    // Adjustment Modal State
+    const [adjustTarget, setAdjustTarget] = useState(null); // { id, name, currentStock }
+    const [adjustValue, setAdjustValue] = useState('');
 
     const toggleCategory = (cat) => {
         setOpenCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
     };
 
-    const toggleProduct = (id) => {
-        setOpenProducts(prev => ({ ...prev, [id]: !prev[id] }));
+    const handleAdjustSubmit = () => {
+        if (!adjustTarget || adjustValue === '') return;
+        const val = parseInt(adjustValue);
+        if (!isNaN(val)) {
+            adjustStock(adjustTarget.id, val);
+        }
+        setAdjustTarget(null);
+        setAdjustValue('');
+    };
+
+    const handleMemoBlur = (id, text) => {
+        updateMemo(id, text);
     };
 
     if (loading) return <div className="p-8 text-center">Loading...</div>;
 
-    // Group items by category (Safe Mode)
+    // Grouping
     let groupedItems = {};
     try {
         groupedItems = CATEGORIES.reduce((acc, cat) => {
@@ -26,153 +39,92 @@ export default function InventoryTable() {
             return acc;
         }, {});
     } catch (e) {
-        console.error("Inventory Grouping Error:", e);
-        return (
-            <div className="p-8 text-center text-red-600">
-                <p className="font-bold mb-4">データ不整合エラー</p>
-                <p className="text-sm mb-6">データの読み込み中に問題が発生しました。<br />以下のボタンを押して再読み込みしてください。</p>
-                <button
-                    onClick={() => window.location.reload()}
-                    className="bg-red-600 text-white px-6 py-2 rounded-lg font-bold shadow hover:bg-red-700 active:scale-95 transition-transform"
-                >
-                    再読み込み (Reload)
-                </button>
-            </div>
-        );
+        return <div className="p-4 text-red-500">Error rendering table. Please reload.</div>;
     }
 
     return (
-        <div className="pb-24 p-2 min-h-screen bg-gray-50">
-            <h1 className="text-xl font-bold mb-4 ml-2">在庫管理表</h1>
+        <div className="pb-32 p-2 bg-gray-50 min-h-screen">
+            <h1 className="text-xl font-bold mb-6 ml-2 text-gray-800">在庫一覧・修正 (Strict v7)</h1>
 
-            <div className="space-y-2">
+            <div className="space-y-4">
                 {CATEGORIES.map(category => {
                     const items = groupedItems[category] || [];
+                    if (items.length === 0) return null; // Hide empty categories if needed, or show empty
+
                     const isOpen = openCategories[category];
 
                     return (
                         <div key={category} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                            {/* Category Header */}
+                            {/* Header */}
                             <div
                                 onClick={() => toggleCategory(category)}
-                                className="flex justify-between items-center p-3 bg-gray-100 cursor-pointer hover:bg-gray-200 transition-colors"
+                                className="flex justify-between items-center p-4 bg-gray-100 cursor-pointer hover:bg-gray-200"
                             >
-                                <h2 className="font-bold text-lg text-gray-800 flex items-center gap-2">
-                                    {isOpen ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                                    {category}
-                                    <span className="text-sm font-normal text-gray-500">({items.length})</span>
-                                </h2>
+                                <h2 className="font-bold text-lg text-gray-800">{category}</h2>
+                                <span className="bg-white px-2 py-0.5 rounded-full text-xs font-bold text-gray-500">{items.length}</span>
                             </div>
 
-                            {/* Product List */}
+                            {/* Grid Body */}
                             {isOpen && (
-                                <div className="divide-y divide-gray-100">
+                                <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-white">
                                     {items.map(item => {
-                                        const isProductOpen = openProducts[item.id];
-                                        const isLowStock = item.reorderPoint > 0 && item.currentStock <= item.reorderPoint;
+                                        const isLowStock = item.currentStock <= item.reorderPoint;
 
                                         return (
-                                            <div key={item.id} className="bg-white">
-                                                {/* Main Row */}
-                                                <div
-                                                    onClick={() => toggleProduct(item.id)}
-                                                    className="p-3 flex justify-between items-center cursor-pointer hover:bg-blue-50"
-                                                >
-                                                    <div className="flex-1">
-                                                        <div className="font-bold text-gray-800 flex items-center gap-2">
-                                                            {item.name}
-                                                            {isLowStock && <AlertTriangle size={16} className="text-red-500" />}
-                                                        </div>
-                                                        <div className="text-xs text-gray-400">{item.fullName}</div>
+                                            <div key={item.id} className={`p-4 rounded-lg border-2 ${isLowStock ? 'border-red-100 bg-red-50' : 'border-gray-100 bg-white'}`}>
+                                                {/* Product Header */}
+                                                <div className="flex justify-between items-start mb-3">
+                                                    <div>
+                                                        <h3 className="font-bold text-gray-800 text-lg leading-tight">{item.name}</h3>
+                                                        <p className="text-[10px] text-gray-400 mt-1">{item.fullName}</p>
                                                     </div>
-
-                                                    <div className="flex gap-4 text-right">
-                                                        <div>
-                                                            <div className="text-[10px] text-gray-400">現在庫</div>
-                                                            <div className={`font-bold text-lg ${isLowStock ? 'text-red-600' : 'text-blue-600'}`}>
-                                                                {item.currentStock.toLocaleString()}
-                                                            </div>
+                                                    <div className="text-right">
+                                                        <div className={`text-2xl font-bold ${isLowStock ? 'text-red-600' : 'text-blue-600'}`}>
+                                                            {item.currentStock}
                                                         </div>
-                                                        <div>
-                                                            <div className="text-[10px] text-gray-400">本日出庫</div>
-                                                            <div className="font-bold text-gray-700">
-                                                                {item.todayOut > 0 ? item.todayOut : '-'}
-                                                                {item.todaySample > 0 && <span className="text-xs text-gray-400 ml-1">(サ{item.todaySample})</span>}
-                                                            </div>
-                                                        </div>
+                                                        <div className="text-[10px] text-gray-400">現在庫</div>
                                                     </div>
                                                 </div>
 
-                                                {/* Detail Row (Accordion / Spreadsheet View) */}
-                                                {isProductOpen && (
-                                                    <div className="bg-gray-50 p-3 text-xs border-t border-gray-100">
-                                                        {/* Stats Grid */}
-                                                        <div className="grid grid-cols-2 gap-4 mb-4">
-                                                            <div>
-                                                                <div className="text-gray-400 mb-1">発注点</div>
-                                                                <div className="font-bold text-gray-700">{item.reorderPoint ? item.reorderPoint.toLocaleString() : '-'}</div>
-                                                            </div>
-                                                            <div>
-                                                                <div className="text-gray-400 mb-1">今月合計出庫</div>
-                                                                <div className="font-bold text-gray-700">{item.monthOut.toLocaleString()}</div>
-                                                            </div>
-                                                            <div>
-                                                                <div className="text-gray-400 mb-1">平均出庫(CSV)</div>
-                                                                <div className="font-bold text-gray-700">{item.averageOut ? item.averageOut.toLocaleString() : '-'}</div>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Daily History Table (Spreadsheet Layout) */}
-                                                        <div>
-                                                            <div className="text-gray-400 mb-2 font-bold">日別入出庫・在庫推移 (2026年2月)</div>
-                                                            <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                                                                <table className="w-full text-center whitespace-nowrap table-fixed">
-                                                                    <thead className="bg-gray-100 text-gray-500 font-medium text-[10px]">
-                                                                        <tr>
-                                                                            <th className="px-1 py-1 w-16 text-left">日付</th>
-                                                                            <th className="px-1 py-1 text-green-600 w-10">入庫</th>
-                                                                            <th className="px-1 py-1 text-red-600 w-10">出庫</th>
-                                                                            <th className="px-1 py-1 text-gray-500 w-12">サンプル</th>
-                                                                            <th className="px-1 py-1 text-blue-600 w-12">在庫</th>
-                                                                        </tr>
-                                                                    </thead>
-                                                                    <tbody className="divide-y divide-gray-100 bg-white text-[11px]">
-                                                                        {(item.dailyHistory && item.dailyHistory.length > 0) ? (
-                                                                            item.dailyHistory.map((day, idx) => {
-                                                                                if (!day || !day.dateObj) return null;
-
-                                                                                const dayOfWeek = day.dateObj.getDay(); // 0:Sun, 6:Sat
-                                                                                const isSat = dayOfWeek === 6;
-                                                                                const isSun = dayOfWeek === 0;
-
-                                                                                let rowClass = "text-gray-700";
-                                                                                if (isSat) rowClass = "bg-blue-50 text-blue-700 font-medium";
-                                                                                if (isSun) rowClass = "bg-red-50 text-red-700 font-medium";
-
-                                                                                // Safe date string
-                                                                                const dateLabel = `${day.dateObj.getDate()} (${['日', '月', '火', '水', '木', '金', '土'][dayOfWeek] || '-'})`;
-
-                                                                                return (
-                                                                                    <tr key={`${item.id}-${day.date}-${idx}`} className={rowClass}>
-                                                                                        <td className="px-2 py-1 text-left">{dateLabel}</td>
-                                                                                        <td className="px-1 py-1">{day.in}</td>
-                                                                                        <td className="px-1 py-1">{day.out}</td>
-                                                                                        <td className="px-1 py-1">{day.sample}</td>
-                                                                                        <td className="px-1 py-1 font-bold">{day.stock.toLocaleString()}</td>
-                                                                                    </tr>
-                                                                                );
-                                                                            })
-                                                                        ) : (
-                                                                            <tr>
-                                                                                <td colSpan="5" className="px-2 py-4 text-center text-gray-400">データがありません</td>
-                                                                            </tr>
-                                                                        )}
-                                                                    </tbody>
-                                                                </table>
-                                                            </div>
-                                                        </div>
+                                                {/* Info Grid */}
+                                                <div className="grid grid-cols-2 gap-2 text-xs mb-3 bg-gray-50 p-2 rounded">
+                                                    <div>
+                                                        <span className="text-gray-400 block">最新ロット</span>
+                                                        <span className="font-mono text-gray-700 font-bold">{item.latestLot || '-'}</span>
                                                     </div>
-                                                )}
+                                                    <div>
+                                                        <span className="text-gray-400 block">発注点</span>
+                                                        <span className={`font-bold ${isLowStock ? 'text-red-500' : 'text-gray-700'}`}>
+                                                            {item.reorderPoint}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Actions / Memo */}
+                                                <div className="space-y-2">
+                                                    {/* Memo */}
+                                                    <div>
+                                                        <textarea
+                                                            className="w-full text-xs p-1 border border-gray-200 rounded resize-none focus:border-blue-500 focus:outline-none bg-yellow-50"
+                                                            rows="2"
+                                                            placeholder="メモ (タップして編集)"
+                                                            defaultValue={item.memo}
+                                                            onBlur={(e) => handleMemoBlur(item.id, e.target.value)}
+                                                        />
+                                                    </div>
+
+                                                    {/* Adjust Button */}
+                                                    <button
+                                                        onClick={() => {
+                                                            setAdjustTarget({ id: item.id, name: item.name, currentStock: item.currentStock });
+                                                            setAdjustValue(item.currentStock);
+                                                        }}
+                                                        className="w-full py-1.5 flex items-center justify-center gap-2 text-xs font-bold text-gray-600 bg-gray-100 rounded hover:bg-gray-200"
+                                                    >
+                                                        <Edit2 size={12} />
+                                                        在庫数修正
+                                                    </button>
+                                                </div>
                                             </div>
                                         );
                                     })}
@@ -183,12 +135,48 @@ export default function InventoryTable() {
                 })}
             </div>
 
-            {/* Legend */}
-            <div className="mt-8 p-4 text-xs text-gray-500 bg-white rounded-lg">
-                <p>※ (サ) はサンプル出庫数を含みます</p>
-                <p>※ 現在庫 = 1月末在庫(CSV) + 2/1からの入出庫累積</p>
-                <p>※ <AlertTriangle size={12} className="inline text-red-500" /> マークは在庫が発注点を下回っています</p>
-            </div>
+            {/* Adjustment Modal */}
+            {adjustTarget && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
+                        <h3 className="font-bold text-lg mb-1">{adjustTarget.name}</h3>
+                        <p className="text-xs text-gray-500 mb-6">実在庫を入力してください。差分が自動計算されます。</p>
+
+                        <div className="flex gap-4 items-center mb-6 justify-center">
+                            <button
+                                onClick={() => setAdjustValue(Number(adjustValue) - 1)}
+                                className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-xl font-bold hover:bg-gray-200"
+                            >-</button>
+                            <input
+                                type="number"
+                                pattern="\d*"
+                                className="w-24 text-center text-3xl font-bold border-b-2 border-blue-500 focus:outline-none"
+                                value={adjustValue}
+                                onChange={(e) => setAdjustValue(e.target.value)}
+                            />
+                            <button
+                                onClick={() => setAdjustValue(Number(adjustValue) + 1)}
+                                className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-xl font-bold hover:bg-gray-200"
+                            >+</button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                onClick={() => setAdjustTarget(null)}
+                                className="py-3 text-gray-500 font-bold bg-gray-100 rounded-lg"
+                            >
+                                キャンセル
+                            </button>
+                            <button
+                                onClick={handleAdjustSubmit}
+                                className="py-3 text-white font-bold bg-blue-600 rounded-lg hover:bg-blue-700"
+                            >
+                                修正確定
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

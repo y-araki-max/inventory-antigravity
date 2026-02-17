@@ -1,10 +1,10 @@
 const STORAGE_KEY = 'inventory_history';
+const MEMO_KEY = 'inventory_memos';
 
 export const storage = {
-    // データを保存（既存のリストに追加）
+    // --- History (IN/OUT/ADJUST) ---
     saveItem: (item) => {
         const items = storage.getItems();
-        // ユニークIDがない場合は付与
         if (!item.uuid) {
             item.uuid = crypto.randomUUID();
         }
@@ -12,7 +12,6 @@ export const storage = {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
     },
 
-    // データを全件取得
     getItems: () => {
         const json = localStorage.getItem(STORAGE_KEY);
         try {
@@ -23,15 +22,29 @@ export const storage = {
         }
     },
 
-    // 指定したUUIDのデータを削除
     deleteItem: (uuid) => {
         const items = storage.getItems();
         const newItems = items.filter(item => item.uuid !== uuid);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(newItems));
     },
 
-    // 全削除
     clearItems: () => {
         localStorage.removeItem(STORAGE_KEY);
+    },
+
+    // --- Memos (Product ID -> Text) ---
+    saveMemo: (productId, text) => {
+        const memos = storage.getMemos();
+        memos[productId] = text;
+        localStorage.setItem(MEMO_KEY, JSON.stringify(memos));
+    },
+
+    getMemos: () => {
+        const json = localStorage.getItem(MEMO_KEY);
+        try {
+            return json ? JSON.parse(json) : {};
+        } catch (e) {
+            return {};
+        }
     }
 };

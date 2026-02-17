@@ -6,140 +6,85 @@ import { parseInventoryCSV } from '../utils/csvParser';
 import multiCsv from '../assets/csv/multi_202601.csv?raw'; // Raw import
 
 export const useInventory = () => {
-    const [inventory, setInventory] = useState({});
-    const [loading, setLoading] = useState(true);
-    const location = useLocation(); // Re-fetch on navigation if needed
+    const [memos, setMemos] = useState({});
 
     useEffect(() => {
         loadInventory();
-    }, [location.pathname]); // Reload when route changes (e.g. after entry)
+    }, [location.pathname]);
 
     const loadInventory = () => {
         setLoading(true);
         try {
-            // 1. Initial Data from CSV
+            // 1. Initial Data
             const csvData = parseInventoryCSV(multiCsv, PRODUCTS);
-
-            // 2. Current App Data (App activity starts from Feb 1st 2026)
-            // We assume CSV "Jan 31 Stock" is the baseline.
-            // Any data in localStorage with date > 2026-02-01 should be processed.
-            // However, safely, we can just process ALL localStorage data if we assume the CSV is the *start*.
-            // But if the user entered Jan data in the app, it would be double counted if we aren't careful.
-            // Let's assume the "App Operation Start" is Feb 1st.
-            // We filter localStorage items to only include those after Jan 31st.
             const appItems = storage.getItems();
-            const cutoffDate = new Date('2026-02-01T00:00:00');
+            const savedMemos = storage.getMemos();
+            setMemos(savedMemos);
 
-            const newActivity = appItems.filter(item => {
-                const d = new Date(item.date);
-                return d >= cutoffDate;
-            });
+            const cutoffDate = new Date('2026-02-01T00:00:00');
+            const newActivity = appItems.filter(item => new Date(item.date) >= cutoffDate);
 
             // 3. Merge
             const todayStr = new Date().toISOString().split('T')[0];
-            const currentMonthStr = todayStr.substring(0, 7); // YYYY-MM
+            const currentMonthStr = todayStr.substring(0, 7);
 
             const calculatedInventory = {};
 
             PRODUCTS.forEach(product => {
                 const pid = product.id;
-                const csvItem = csvData[pid] || { initialStock: 0, history: [], averageOut: 0, reorderPoint: 0 };
+                const csvItem = csvData[pid] || { initialStock: 0 };
 
                 let currentStock = csvItem.initialStock;
                 let todayOut = 0;
                 let todaySample = 0;
                 let monthOut = 0;
+                let latestLot = ''; // New: Track Lot
 
-                // Process App Activity
+                // Process History
                 newActivity.forEach(item => {
-                    const itemName = normalizeTerm(item.name);
-                    // Match by ID (loose equality for string/number) OR Name
-                    // Using normalized name allows matching "エネルギー" to "エナジー"
-                    if (item.productId == pid || itemName === product.name) {
-                        const qty = parseInt(item.quantity || 0);
-                        const isOut = item.type === 'OUT';
-                        const isSample = item.isSample;
+                    // Match Logic
+                    const isMatch = (item.productId == pid) || (normalizeTerm(item.name) === product.name);
 
-                        if (isOut) {
+                    if (isMatch) {
+                        const qty = parseInt(item.quantity || 0);
+                        const type = item.type; // IN, OUT, ADJUST
+
+                        if (type === 'OUT') {
                             currentStock -= qty;
-                            // Check Today
                             if (item.date.startsWith(todayStr)) {
                                 todayOut += qty;
-                                if (isSample) todaySample += qty;
+                                if (item.isSample) todaySample += qty;
                             }
-                            // Check Month
-                            if (item.date.startsWith(currentMonthStr)) {
-                                monthOut += qty;
-                            }
-                        } else {
-                            // IN
+                            if (item.date.startsWith(currentMonthStr)) monthOut += qty;
+                        } else if (type === 'IN') {
                             currentStock += qty;
+                            // Capture Lot from IN records
+                            if (item.lot) latestLot = item.lot;
+                        } else if (type === 'ADJUST') {
+                            // Manual Adjustment (Difference is stored in quantity)
+                            // If quantity is positive, we add (found more).
+                            // If negative, we subtract (lost/consumed).
+                            currentStock += qty;
+                        } else if (type === '出庫入力') {
+                            // Legacy support just in case
+                            currentStock -= qty;
                         }
                     }
                 });
 
-                // --- Daily History Calculation (Feb 2026 Strict) ---
-                const dailyHistory = [];
-                // Fixed range: Feb 1, 2026 to Feb 28, 2026
-                const targetYear = 2026;
-                const targetMonth = 1; // Feb (0-indexed)
-                // Dynamic days logc (Safe for any month)
-                const daysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
-
-                let runningStock = csvItem.initialStock;
-
-                for (let d = 1; d <= daysInMonth; d++) {
-                    const dateObj = new Date(targetYear, targetMonth, d);
-                    const dateStr = dateObj.toISOString().split('T')[0];
-
-                    // Filter items for this day
-                    const dayItems = newActivity.filter(item => {
-                        return item.date.startsWith(dateStr) &&
-                            // Match Product
-                            (item.productId == pid || normalizeTerm(item.name) === product.name);
-                    });
-
-                    let dayIn = 0;
-                    let dayOut = 0;     // Sales (Non-sample)
-                    let daySample = 0;  // Samples
-
-                    dayItems.forEach(item => {
-                        const qty = parseInt(item.quantity || 0);
-                        if (item.type === 'IN' || item.type === '出庫入力') {
-                            if (item.type === 'IN') dayIn += qty;
-                        }
-
-                        if (item.type === 'OUT') {
-                            if (item.isSample) {
-                                daySample += qty;
-                            } else {
-                                dayOut += qty;
-                            }
-                        }
-                    });
-
-                    // Update Stock
-                    // Stock = Start + In - Out - Sample
-                    runningStock = runningStock + dayIn - dayOut - daySample;
-
-                    dailyHistory.push({
-                        date: dateStr,
-                        dateObj: dateObj,
-                        in: dayIn,
-                        out: dayOut,
-                        sample: daySample,
-                        stock: runningStock
-                    });
-                }
+                // Safety: Validation to prevent NaN
+                if (isNaN(currentStock)) currentStock = 0;
 
                 calculatedInventory[pid] = {
-                    ...csvItem, // CSV priority low
-                    ...product, // Master Data priority high (Name, Category, ID)
+                    ...csvItem,
+                    ...product,
                     currentStock,
                     todayOut,
                     todaySample,
                     monthOut,
-                    dailyHistory
+                    latestLot,
+                    memo: savedMemos[pid] || '',
+                    dailyHistory: [] // v7 simplification: Grid view doesn't imply daily graph needed immediately, staying safe.
                 };
             });
 
@@ -151,5 +96,33 @@ export const useInventory = () => {
         }
     };
 
-    return { inventory, loading, refresh: loadInventory };
+    const updateMemo = (productId, text) => {
+        storage.saveMemo(productId, text);
+        loadInventory(); // Reload to reflect
+    };
+
+    const adjustStock = (productId, actualStock) => {
+        const product = inventory[productId];
+        if (!product) return;
+
+        const current = product.currentStock;
+        const diff = actualStock - current;
+
+        if (diff === 0) return;
+
+        // Save Adjustment Record
+        const record = {
+            type: 'ADJUST',
+            productId: productId,
+            name: product.name,
+            quantity: diff,
+            date: new Date().toISOString(),
+            uuid: crypto.randomUUID()
+        };
+
+        storage.saveItem(record);
+        loadInventory();
+    };
+
+    return { inventory, loading, refresh: loadInventory, updateMemo, adjustStock };
 };
