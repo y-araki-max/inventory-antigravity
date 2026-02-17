@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
 import { useInventory } from '../hooks/useInventory';
 import { CATEGORIES } from '../data';
-import { MapPin, AlertCircle, Edit2, Save, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { MapPin, Edit2, ChevronDown, ChevronUp, Calendar } from 'lucide-react';
 
 export default function InventoryTable() {
-    const { inventory, loading, updateMemo, adjustStock } = useInventory();
+    const {
+        inventory,
+        loading,
+        updateMemo,
+        adjustStock,
+        viewYear, setViewYear,
+        viewMonth, setViewMonth
+    } = useInventory();
+
     const [openCategories, setOpenCategories] = useState({});
-
-    // Strict v8.3: Multi-Calendar Expansion (Set of IDs)
     const [expandedProducts, setExpandedProducts] = useState(new Set());
-
-    // Adjustment Modal State
-    const [adjustTarget, setAdjustTarget] = useState(null); // { id, name, currentStock }
+    const [adjustTarget, setAdjustTarget] = useState(null);
     const [adjustValue, setAdjustValue] = useState('');
 
     const toggleCategory = (cat) => {
@@ -21,11 +25,8 @@ export default function InventoryTable() {
     const toggleProductCalendar = (id) => {
         setExpandedProducts(prev => {
             const newSet = new Set(prev);
-            if (newSet.has(id)) {
-                newSet.delete(id);
-            } else {
-                newSet.add(id);
-            }
+            if (newSet.has(id)) newSet.delete(id);
+            else newSet.add(id);
             return newSet;
         });
     };
@@ -40,10 +41,6 @@ export default function InventoryTable() {
         setAdjustValue('');
     };
 
-    const handleMemoBlur = (id, text) => {
-        updateMemo(id, text);
-    };
-
     if (loading) return <div className="p-8 text-center bg-gray-50 text-gray-600">読み込み中...</div>;
 
     // Grouping
@@ -54,23 +51,46 @@ export default function InventoryTable() {
             return acc;
         }, {});
     } catch (e) {
-        return <div className="p-4 text-red-500">データエラーが発生しました。リロードしてください。</div>;
+        return <div className="p-4 text-red-500">データエラー。リロードしてください。</div>;
     }
 
     return (
         <div className="pb-32 p-2 bg-gray-50 min-h-screen">
-            <h1 className="text-xl font-bold mb-6 ml-2 text-gray-800">在庫一覧・修正 (Strict v8.3)</h1>
+            {/* Header with Month Selector */}
+            <div className="flex flex-col md:flex-row justify-between items-center mb-6 ml-2 mr-2">
+                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v9.0)</h1>
+
+                <div className="flex items-center gap-2 bg-white p-2 rounded shadow-sm border border-gray-200">
+                    <Calendar size={18} className="text-blue-600" />
+                    <span className="text-xs font-bold text-gray-500">表示月:</span>
+                    <select
+                        value={viewYear}
+                        onChange={(e) => setViewYear(Number(e.target.value))}
+                        className="font-bold text-gray-700 bg-transparent border-none focus:ring-0 cursor-pointer"
+                    >
+                        <option value={2026}>2026年</option>
+                        <option value={2025}>2025年</option>
+                    </select>
+                    <select
+                        value={viewMonth}
+                        onChange={(e) => setViewMonth(Number(e.target.value))}
+                        className="font-bold text-lg text-blue-600 bg-transparent border-none focus:ring-0 cursor-pointer"
+                    >
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
+                            <option key={m} value={m}>{m}月</option>
+                        ))}
+                    </select>
+                </div>
+            </div>
 
             <div className="space-y-4">
                 {CATEGORIES.map(category => {
                     const items = groupedItems[category] || [];
                     if (items.length === 0) return null;
-
                     const isOpen = openCategories[category];
 
                     return (
                         <div key={category} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                            {/* Header */}
                             <div
                                 onClick={() => toggleCategory(category)}
                                 className="flex justify-between items-center p-4 bg-gray-100 cursor-pointer hover:bg-gray-200 transition-colors"
@@ -79,21 +99,17 @@ export default function InventoryTable() {
                                 <span className="bg-white px-3 py-1 rounded-full text-xs font-bold text-gray-500 shadow-sm">{items.length}</span>
                             </div>
 
-                            {/* Grid Body */}
                             {isOpen && (
                                 <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-white">
                                     {items.map(item => {
-                                        // Master Data vs Stock Checks
                                         const rp = item.reorderPoint !== '-' ? item.reorderPoint : 0;
                                         const isLowStock = rp > 0 && item.currentStock <= rp;
                                         const isCalendarOpen = expandedProducts.has(item.id);
 
                                         return (
                                             <div key={item.id} className={`p-4 rounded-lg border-2 transition-all ${isLowStock ? 'border-red-100 bg-red-50/50' : 'border-gray-100 bg-white'}`}>
-                                                {/* Product Header */}
                                                 <div className="flex justify-between items-start mb-3">
                                                     <div>
-                                                        {/* Clickable Name for Calendar */}
                                                         <button
                                                             onClick={() => toggleProductCalendar(item.id)}
                                                             className="text-left font-bold text-gray-800 text-lg leading-tight hover:text-blue-600 hover:underline decoration-2 underline-offset-2 flex items-center gap-1"
@@ -107,16 +123,14 @@ export default function InventoryTable() {
                                                         <div className={`text-2xl font-bold ${isLowStock ? 'text-red-600' : 'text-blue-600'}`}>
                                                             {item.currentStock.toLocaleString()}
                                                         </div>
-                                                        <div className="text-[10px] text-gray-400">現在庫</div>
+                                                        <div className="text-[10px] text-gray-400">{viewMonth}月末在庫</div>
                                                     </div>
                                                 </div>
 
-                                                {/* Info Grid */}
                                                 <div className="grid grid-cols-3 gap-2 text-xs mb-3 bg-gray-50 p-2 rounded border border-gray-100">
                                                     <div>
                                                         <span className="text-gray-400 block text-[10px]">最新ロット</span>
                                                         <div className="flex flex-col">
-                                                            {/* Strict v8.3: Lot Logic */}
                                                             {item.lots && item.lots.length > 0 ? (
                                                                 item.lots.map((lot, idx) => (
                                                                     <span key={lot} className={`font-mono leading-tight ${idx === 0 ? 'text-red-600 font-bold' : 'text-gray-600'}`}>
@@ -142,18 +156,15 @@ export default function InventoryTable() {
                                                     </div>
                                                 </div>
 
-                                                {/* Actions / Memo */}
                                                 <div className="space-y-2">
-                                                    {/* Memo */}
                                                     <textarea
                                                         className="w-full text-xs p-2 border border-yellow-200 rounded resize-none focus:border-yellow-400 focus:outline-none bg-yellow-50/50"
                                                         rows="2"
-                                                        placeholder="メモ (タップして編集)"
+                                                        placeholder="メモ"
                                                         defaultValue={item.memo}
-                                                        onBlur={(e) => handleMemoBlur(item.id, e.target.value)}
+                                                        onBlur={(e) => updateMemo(item.id, e.target.value)}
                                                     />
 
-                                                    {/* Adjust Button */}
                                                     <button
                                                         onClick={() => {
                                                             setAdjustTarget({ id: item.id, name: item.name, currentStock: item.currentStock });
@@ -166,12 +177,11 @@ export default function InventoryTable() {
                                                     </button>
                                                 </div>
 
-                                                {/* Calendar Accordion (Strict v8.3: Multi-Expand) */}
                                                 {isCalendarOpen && (
                                                     <div className="mt-4 pt-4 border-t-2 border-dashed border-gray-200 animate-in slide-in-from-top-2 duration-200">
                                                         <h4 className="text-xs font-bold text-gray-500 mb-2 flex items-center gap-2">
                                                             <MapPin size={12} />
-                                                            日次推移 (2026年2月)
+                                                            日次推移 ({viewYear}年{viewMonth}月)
                                                         </h4>
                                                         <div className="overflow-x-auto border border-gray-200 rounded bg-white max-h-60 overflow-y-auto">
                                                             <table className="w-full text-center text-xs whitespace-nowrap">
@@ -218,12 +228,13 @@ export default function InventoryTable() {
                 })}
             </div>
 
-            {/* Adjustment Modal */}
             {adjustTarget && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
                     <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
                         <h3 className="font-bold text-lg mb-1 text-gray-800">{adjustTarget.name}</h3>
-                        <p className="text-xs text-gray-500 mb-6">実在庫を入力してください。差分が自動計算されます。</p>
+                        <p className="text-xs text-gray-500 mb-6 font-bold text-red-500">
+                            ※ 現在表示中の {viewMonth}月 の在庫を基準に修正します。
+                        </p>
 
                         <div className="flex gap-4 items-center mb-6 justify-center">
                             <button
