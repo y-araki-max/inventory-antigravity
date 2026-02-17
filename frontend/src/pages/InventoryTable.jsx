@@ -31,7 +31,7 @@ export default function InventoryTable() {
             <div className="space-y-2">
                 {CATEGORIES.map(category => {
                     const items = groupedItems[category] || [];
-                    if (items.length === 0) return null;
+                    // if (items.length === 0) return null; // Removed check to force display
 
                     const isOpen = openCategories[category];
 

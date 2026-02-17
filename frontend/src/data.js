@@ -112,7 +112,7 @@ export const PRODUCTS = [
 export const normalizeTerm = (term) => {
     if (!term) return '';
     if (term === '特別作戦') return 'オプショナル';
-    if (term === '受け取り' || term === '受取') return '入庫';
+    if (term === '受け取り' || term === '受取' || term === '受け取り入力') return '出庫';
     if (term === '有細胞子') return '有胞子';
     if (term === 'エネルギー') return 'エナジー';
     if (term === '質問10' || term === 'Q10') return 'Q10';
