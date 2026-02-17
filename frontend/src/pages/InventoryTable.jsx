@@ -120,29 +120,36 @@ export default function InventoryTable() {
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody className="divide-y divide-gray-100 bg-white text-[11px]">
-                                                                        {(item.dailyHistory || []).map((day, idx) => {
-                                                                            if (!day || !day.dateObj) return null;
-                                                                            const dayOfWeek = day.dateObj.getDay(); // 0:Sun, 6:Sat
-                                                                            const isSat = dayOfWeek === 6;
-                                                                            const isSun = dayOfWeek === 0;
+                                                                        {(item.dailyHistory && item.dailyHistory.length > 0) ? (
+                                                                            item.dailyHistory.map((day, idx) => {
+                                                                                if (!day || !day.dateObj) return null;
 
-                                                                            let rowClass = "text-gray-700";
-                                                                            if (isSat) rowClass = "bg-blue-50 text-blue-700 font-medium";
-                                                                            if (isSun) rowClass = "bg-red-50 text-red-700 font-medium";
+                                                                                const dayOfWeek = day.dateObj.getDay(); // 0:Sun, 6:Sat
+                                                                                const isSat = dayOfWeek === 6;
+                                                                                const isSun = dayOfWeek === 0;
 
-                                                                            const dateLabel = `${day.dateObj.getDate()} (${['日', '月', '火', '水', '木', '金', '土'][dayOfWeek]})`;
+                                                                                let rowClass = "text-gray-700";
+                                                                                if (isSat) rowClass = "bg-blue-50 text-blue-700 font-medium";
+                                                                                if (isSun) rowClass = "bg-red-50 text-red-700 font-medium";
 
-                                                                            return (
-                                                                                <tr key={idx} className={rowClass}>
-                                                                                    <td className="px-2 py-1 text-left">{dateLabel}</td>
-                                                                                    {/* Show '0' if 0, per request "動きがない日も「0」で表示" */}
-                                                                                    <td className="px-1 py-1">{day.in}</td>
-                                                                                    <td className="px-1 py-1">{day.out}</td>
-                                                                                    <td className="px-1 py-1">{day.sample}</td>
-                                                                                    <td className="px-1 py-1 font-bold">{day.stock.toLocaleString()}</td>
-                                                                                </tr>
-                                                                            );
-                                                                        })}
+                                                                                // Safe date string
+                                                                                const dateLabel = `${day.dateObj.getDate()} (${['日', '月', '火', '水', '木', '金', '土'][dayOfWeek] || '-'})`;
+
+                                                                                return (
+                                                                                    <tr key={`${item.id}-${day.date}-${idx}`} className={rowClass}>
+                                                                                        <td className="px-2 py-1 text-left">{dateLabel}</td>
+                                                                                        <td className="px-1 py-1">{day.in}</td>
+                                                                                        <td className="px-1 py-1">{day.out}</td>
+                                                                                        <td className="px-1 py-1">{day.sample}</td>
+                                                                                        <td className="px-1 py-1 font-bold">{day.stock.toLocaleString()}</td>
+                                                                                    </tr>
+                                                                                );
+                                                                            })
+                                                                        ) : (
+                                                                            <tr>
+                                                                                <td colSpan="5" className="px-2 py-4 text-center text-gray-400">データがありません</td>
+                                                                            </tr>
+                                                                        )}
                                                                     </tbody>
                                                                 </table>
                                                             </div>

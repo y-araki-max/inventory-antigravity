@@ -109,35 +109,48 @@ export const PRODUCTS = [
     { id: 992, category: "カスタム", name: "村上 様", fullName: "村上 様" }
 ];
 
-// 用語正規化ロジック (Strict)
 export const normalizeTerm = (term) => {
     if (!term) return '';
     let normalized = term;
 
-    // 1. カテゴリ系の正規化
+    const TERM_MAP = {
+        '特別作戦': 'オプショナル',
+        '特別作戦①': 'オプショナル',
+        '特別作戦1': 'オプショナル',
+        '特別作戦②': 'オプショナル',
+        '特別作戦2': 'オプショナル',
+        '特別作戦③': 'オプショナル',
+        '特別作戦3': 'オプショナル',
+        'オプショナル①': 'オプショナル',
+        'オプショナル②': 'オプショナル',
+        'オプショナル③': 'オプショナル',
+
+        '競合商品': '他社商品',
+        '質問10': 'Q10',
+        '質問１０': 'Q10',
+        'いん': 'アミノ酸',
+        '有細胞子': '有胞子',
+        'エネルギー': 'エナジー',
+        '受け取り': '出庫入力',
+        '受け取り入力': '出庫入力',
+        '受け取り入力 / 受取': '出庫入力',
+        'ボス': 'BOSS',
+        'ぼす': 'BOSS',
+        'BOSS / Staff': 'BOSS',
+        'その他2丹青': 'その他2'
+    };
+
+    if (TERM_MAP[normalized]) {
+        return TERM_MAP[normalized];
+    }
+
+    // Fallback logic
     if (normalized.includes('特別作戦') || normalized.includes('オプショナル')) {
         return 'オプショナル';
     }
-    if (normalized === '競合商品') return '他社商品';
-    if (normalized === 'その他2丹青') return 'その他2';
-
-    // 2. 動作・種別系の正規化
-    if (normalized === '受け取り' || normalized === '受取' || normalized === '受け取り入力' || normalized === '受け取り入力 / 受取') {
-        return '出庫入力'; // ご指定: "受け取り, 受け取り入力 ⇒ 出庫入力"
-        // 注意: 以前のコードであえて '出庫' にしていた場合は '出庫入力' に統一
-    }
-
-    // 3. 商品名・その他用語の正規化
-    if (normalized === '有細胞子') return '有胞子';
-    if (normalized === 'エネルギー') return 'エナジー';
-    if (normalized === '質問10' || normalized === 'Q10' || normalized === '質問１０') return 'Q10';
-    if (normalized === 'ボス' || normalized === 'ぼす' || normalized === 'BOSS / Staff') return 'BOSS';
-
-    // 部分一致置換
     if (normalized.includes('いん')) {
-        normalized = normalized.replace('いん', 'アミノ酸');
+        return normalized.replace('いん', 'アミノ酸');
     }
 
     return normalized;
 };
-
