@@ -119,13 +119,17 @@ export const useInventory = () => {
     };
 
     // Helper: Calculate Daily History for Specific Month
-    const calculateDailyHistory = (activity, pid, product, initialStock, year, month) => {
+    const calculateDailyHistory = (activity, pid, product, initialStock, year, month) => { // month is 1-12
         const history = [];
-        const daysInMonth = new Date(year, month, 0).getDate(); // Last day of this month
+        // Get number of days in the month. 
+        // new Date(year, month, 0) returns the last day of the *previous* month if month is 0-indexed?
+        // No, standard JS: new Date(2026, 2, 0) -> March 0th = Feb 28th. (Month 2 is March).
+        // Here `month` param is 1-12.
+        // So new Date(year, month, 0) where month is 2 (Feb) -> new Date(2026, 2, 0) -> Feb 28. Correct.
+        const daysInMonth = new Date(year, month, 0).getDate();
 
         // We need "Stock at Start of Month" to run the daily loop
-        // Filter activity BEFORE this month
-        const monthStart = new Date(year, month - 1, 1); // 1st of View Month
+        const monthStart = new Date(year, month - 1, 1); // 1st of View Month (Month 0-11)
 
         let runningStock = initialStock;
 
@@ -147,11 +151,15 @@ export const useInventory = () => {
 
         // Now Loop Days of View Month
         for (let d = 1; d <= daysInMonth; d++) {
+            // Determine date string for matching: YYYY-MM-DD
+            const monthStr = String(month).padStart(2, '0');
+            const dayStr = String(d).padStart(2, '0');
+            const dateStr = `${year}-${monthStr}-${dayStr}`;
             const dateObj = new Date(year, month - 1, d);
-            const dateStr = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD
 
             // Filter items for strictly this day
             const dayItems = activity.filter(item => {
+                // Assuming item.date is ISO string or YYYY-MM-DD
                 return item.date.startsWith(dateStr) &&
                     ((item.productId == pid) || (normalizeTerm(item.name) === product.name));
             });
