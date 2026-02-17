@@ -7,8 +7,8 @@ export default function InventoryTable() {
     const { inventory, loading, updateMemo, adjustStock } = useInventory();
     const [openCategories, setOpenCategories] = useState({});
 
-    // Strict v8: Calendar Expansion State (Key: ProductID)
-    const [expandedProduct, setExpandedProduct] = useState(null);
+    // Strict v8.3: Multi-Calendar Expansion (Set of IDs)
+    const [expandedProducts, setExpandedProducts] = useState(new Set());
 
     // Adjustment Modal State
     const [adjustTarget, setAdjustTarget] = useState(null); // { id, name, currentStock }
@@ -19,7 +19,15 @@ export default function InventoryTable() {
     };
 
     const toggleProductCalendar = (id) => {
-        setExpandedProduct(prev => (prev === id ? null : id));
+        setExpandedProducts(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(id)) {
+                newSet.delete(id);
+            } else {
+                newSet.add(id);
+            }
+            return newSet;
+        });
     };
 
     const handleAdjustSubmit = () => {
@@ -51,7 +59,7 @@ export default function InventoryTable() {
 
     return (
         <div className="pb-32 p-2 bg-gray-50 min-h-screen">
-            <h1 className="text-xl font-bold mb-6 ml-2 text-gray-800">在庫一覧・修正 (Strict v8)</h1>
+            <h1 className="text-xl font-bold mb-6 ml-2 text-gray-800">在庫一覧・修正 (Strict v8.3)</h1>
 
             <div className="space-y-4">
                 {CATEGORIES.map(category => {
@@ -78,7 +86,7 @@ export default function InventoryTable() {
                                         // Master Data vs Stock Checks
                                         const rp = item.reorderPoint !== '-' ? item.reorderPoint : 0;
                                         const isLowStock = rp > 0 && item.currentStock <= rp;
-                                        const isCalendarOpen = expandedProduct === item.id;
+                                        const isCalendarOpen = expandedProducts.has(item.id);
 
                                         return (
                                             <div key={item.id} className={`p-4 rounded-lg border-2 transition-all ${isLowStock ? 'border-red-100 bg-red-50/50' : 'border-gray-100 bg-white'}`}>
@@ -107,7 +115,18 @@ export default function InventoryTable() {
                                                 <div className="grid grid-cols-3 gap-2 text-xs mb-3 bg-gray-50 p-2 rounded border border-gray-100">
                                                     <div>
                                                         <span className="text-gray-400 block text-[10px]">最新ロット</span>
-                                                        <span className="font-mono text-gray-700 font-bold">{item.latestLot || '-'}</span>
+                                                        <div className="flex flex-col">
+                                                            {/* Strict v8.3: Lot Logic */}
+                                                            {item.lots && item.lots.length > 0 ? (
+                                                                item.lots.map((lot, idx) => (
+                                                                    <span key={lot} className={`font-mono leading-tight ${idx === 0 ? 'text-red-600 font-bold' : 'text-gray-600'}`}>
+                                                                        {lot}
+                                                                    </span>
+                                                                ))
+                                                            ) : (
+                                                                <span className="font-mono text-gray-300">-</span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                     <div>
                                                         <span className="text-gray-400 block text-[10px]">発注点</span>
@@ -147,22 +166,22 @@ export default function InventoryTable() {
                                                     </button>
                                                 </div>
 
-                                                {/* Calendar Accordion (Strict v8) */}
+                                                {/* Calendar Accordion (Strict v8.3: Multi-Expand) */}
                                                 {isCalendarOpen && (
-                                                    <div className="mt-4 pt-4 border-t-2 border-dashed border-gray-200">
+                                                    <div className="mt-4 pt-4 border-t-2 border-dashed border-gray-200 animate-in slide-in-from-top-2 duration-200">
                                                         <h4 className="text-xs font-bold text-gray-500 mb-2 flex items-center gap-2">
                                                             <MapPin size={12} />
                                                             日次推移 (2026年2月)
                                                         </h4>
-                                                        <div className="overflow-x-auto border border-gray-200 rounded bg-white">
+                                                        <div className="overflow-x-auto border border-gray-200 rounded bg-white max-h-60 overflow-y-auto">
                                                             <table className="w-full text-center text-xs whitespace-nowrap">
-                                                                <thead className="bg-gray-100 text-gray-600 font-medium">
+                                                                <thead className="bg-gray-100 text-gray-600 font-medium sticky top-0 z-10 shadow-sm">
                                                                     <tr>
-                                                                        <th className="p-1 min-w-[30px]">日</th>
-                                                                        <th className="p-1 min-w-[30px] border-l border-gray-200">入</th>
-                                                                        <th className="p-1 min-w-[30px] border-l border-gray-200">出</th>
-                                                                        <th className="p-1 min-w-[30px] border-l border-gray-200">サン</th>
-                                                                        <th className="p-1 min-w-[40px] border-l border-gray-200">在庫</th>
+                                                                        <th className="p-1 min-w-[30px] bg-gray-100">日</th>
+                                                                        <th className="p-1 min-w-[30px] border-l border-gray-200 bg-gray-100">入</th>
+                                                                        <th className="p-1 min-w-[30px] border-l border-gray-200 bg-gray-100">出</th>
+                                                                        <th className="p-1 min-w-[30px] border-l border-gray-200 bg-gray-100">サ</th>
+                                                                        <th className="p-1 min-w-[40px] border-l border-gray-200 bg-gray-100">在庫</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>

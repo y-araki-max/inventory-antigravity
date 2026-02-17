@@ -41,7 +41,7 @@ export const useInventory = () => {
                 let todayOut = 0;
                 let todaySample = 0;
                 let monthOut = 0;
-                let latestLot = ''; // New: Track Lot
+                let lots = []; // Array to store unique lots
 
                 // Process History
                 newActivity.forEach(item => {
@@ -62,14 +62,14 @@ export const useInventory = () => {
                         } else if (type === 'IN') {
                             currentStock += qty;
                             // Capture Lot from IN records
-                            if (item.lot) latestLot = item.lot;
+                            if (item.lot && !lots.includes(item.lot)) {
+                                lots.push(item.lot);
+                            }
                         } else if (type === 'ADJUST') {
-                            // Manual Adjustment (Difference is stored in quantity)
-                            // If quantity is positive, we add (found more).
-                            // If negative, we subtract (lost/consumed).
+                            // Manual Adjustment
                             currentStock += qty;
                         } else if (type === '出庫入力') {
-                            // Legacy support just in case
+                            // Legacy support
                             currentStock -= qty;
                         }
                     }
@@ -78,6 +78,11 @@ export const useInventory = () => {
                 // Safety: Validation to prevent NaN
                 if (isNaN(currentStock)) currentStock = 0;
 
+                // Reverse lots to show latest first (assuming pushing in chronological order)
+                // Actually, newActivity order depends on storage. If storage pushes to end, then `lots` has oldest first.
+                // We want Latest (Newest) first for display.
+                const displayLots = [...lots].reverse();
+
                 calculatedInventory[pid] = {
                     ...csvItem,
                     ...product,
@@ -85,7 +90,8 @@ export const useInventory = () => {
                     todayOut,
                     todaySample,
                     monthOut,
-                    latestLot,
+                    latestLot: displayLots.length > 0 ? displayLots[0] : '', // Keep for compatibility if needed
+                    lots: displayLots, // New Array
                     memo: savedMemos[pid] || '',
                     dailyHistory: calculateDailyHistory(newActivity, pid, product, csvItem.initialStock)
                 };
