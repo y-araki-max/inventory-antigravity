@@ -52,7 +52,9 @@ export default function Aggregation() {
         let outCount = 0;
 
         // items is already filtered by date
-        items.forEach(item => {
+        (items || []).forEach(item => {
+            if (!item) return;
+
             // Match by ID or Name
             const itemProductId = item.productId;
             const itemNormalizedName = normalizeTerm(item.name);
@@ -73,7 +75,7 @@ export default function Aggregation() {
         return {
             productId: pid,
             name: pname,
-            category: pcategory,
+            category: pcategory || '未分類', // Fallback for safety
             inCount,
             outCount
         };

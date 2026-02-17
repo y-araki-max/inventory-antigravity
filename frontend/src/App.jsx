@@ -26,7 +26,14 @@ function NavButton({ to, icon, label }) {
   );
 }
 
+import { useEffect } from 'react';
+import { runMigration } from './utils/migration';
+
 function App() {
+  useEffect(() => {
+    runMigration();
+  }, []);
+
   return (
     <BrowserRouter>
       {/* 画面全体 */}

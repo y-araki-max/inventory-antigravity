@@ -122,7 +122,8 @@ export default function InventoryTable() {
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody className="divide-y divide-gray-100 bg-white">
-                                                                        {item.dailyHistory && item.dailyHistory.map((day, idx) => {
+                                                                        {(item.dailyHistory || []).map((day, idx) => {
+                                                                            if (!day || !day.dateObj) return null; // Robust check
                                                                             const dayOfWeek = day.dateObj.getDay(); // 0:Sun, 6:Sat
                                                                             const isSat = dayOfWeek === 6;
                                                                             const isSun = dayOfWeek === 0;
