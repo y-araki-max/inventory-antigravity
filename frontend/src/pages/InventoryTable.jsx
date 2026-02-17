@@ -29,8 +29,14 @@ export default function InventoryTable() {
         console.error("Inventory Grouping Error:", e);
         return (
             <div className="p-8 text-center text-red-600">
-                <p className="font-bold mb-2">データ不整合エラー</p>
-                <p className="text-sm">データの読み込み中に問題が発生しました。ブラウザをリロードしてください。</p>
+                <p className="font-bold mb-4">データ不整合エラー</p>
+                <p className="text-sm mb-6">データの読み込み中に問題が発生しました。<br />以下のボタンを押して再読み込みしてください。</p>
+                <button
+                    onClick={() => window.location.reload()}
+                    className="bg-red-600 text-white px-6 py-2 rounded-lg font-bold shadow hover:bg-red-700 active:scale-95 transition-transform"
+                >
+                    再読み込み (Reload)
+                </button>
             </div>
         );
     }
