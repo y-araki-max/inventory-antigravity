@@ -18,11 +18,22 @@ export default function InventoryTable() {
 
     if (loading) return <div className="p-8 text-center">Loading...</div>;
 
-    // Group items by category
-    const groupedItems = CATEGORIES.reduce((acc, cat) => {
-        acc[cat] = Object.values(inventory).filter(item => item.category === cat);
-        return acc;
-    }, {});
+    // Group items by category (Safe Mode)
+    let groupedItems = {};
+    try {
+        groupedItems = CATEGORIES.reduce((acc, cat) => {
+            acc[cat] = Object.values(inventory).filter(item => item.category === cat);
+            return acc;
+        }, {});
+    } catch (e) {
+        console.error("Inventory Grouping Error:", e);
+        return (
+            <div className="p-8 text-center text-red-600">
+                <p className="font-bold mb-2">データ不整合エラー</p>
+                <p className="text-sm">データの読み込み中に問題が発生しました。ブラウザをリロードしてください。</p>
+            </div>
+        );
+    }
 
     return (
         <div className="pb-24 p-2 min-h-screen bg-gray-50">

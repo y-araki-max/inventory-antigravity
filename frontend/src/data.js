@@ -29,8 +29,6 @@ export const CATEGORIES = [
 export const normalizeTerm = (term) => {
     if (!term) return '';
     const trimmedTerm = term.trim();
-
-    // Strict Mapping as requested
     const TERM_MAP = {
         '特別作戦': 'オプショナル',
         '特別作戦①': 'オプショナル①',
@@ -49,6 +47,5 @@ export const normalizeTerm = (term) => {
         '受取': '出庫入力',
         'ボス': 'BOSS'
     };
-
     return TERM_MAP[trimmedTerm] || trimmedTerm;
 };
