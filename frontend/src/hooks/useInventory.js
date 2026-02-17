@@ -87,7 +87,7 @@ export const useInventory = () => {
                     monthOut,
                     latestLot,
                     memo: savedMemos[pid] || '',
-                    dailyHistory: [] // v7 simplification: Grid view doesn't imply daily graph needed immediately, staying safe.
+                    dailyHistory: calculateDailyHistory(newActivity, pid, product, csvItem.initialStock)
                 };
             });
 
@@ -97,6 +97,71 @@ export const useInventory = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    // Helper: Calculate Daily History (Feb 2026)
+    const calculateDailyHistory = (activity, pid, product, initialStock) => {
+        const history = [];
+        const targetYear = 2026;
+        const targetMonth = 1; // Feb (0-indexed)
+        const daysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+
+        let runningStock = initialStock;
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateObj = new Date(targetYear, targetMonth, d);
+            const dateStr = dateObj.toISOString().split('T')[0];
+
+            // Filter items for this day
+            const dayItems = activity.filter(item => {
+                return item.date.startsWith(dateStr) &&
+                    (item.productId == pid || normalizeTerm(item.name) === product.name);
+            });
+
+            let dayIn = 0;
+            let dayOut = 0;     // Sales
+            let daySample = 0;  // Samples
+
+            dayItems.forEach(item => {
+                const qty = parseInt(item.quantity || 0);
+                if (item.type === 'IN' || item.type === 'ADJUST') {
+                    // Treat ADJUST as IN (if positive) or OUT (if negative logic needed? No, user said ADJUST is correction)
+                    // Currently ADJUST stores difference. If ADJUST +10, stock increases.
+                    if (item.type === 'ADJUST') {
+                        // Strictly speaking, adjust is absolute or relative? 
+                        // Implementation said: "currentStock += diff". So it's relative.
+                        // We will just add it to 'dayIn' for simplicity in history or separate?
+                        // Let's add to stock but maybe not 'IN' column to avoid confusion?
+                        // For the table, let's keep it simple: Stock updates, but maybe not shown in IN/OUT columns unless specific.
+                        // Actually, if we don't show it, the math won't add up for the user.
+                        // Let's count positive ADJUST as IN, negative as OUT?
+                        if (qty >= 0) dayIn += qty;
+                        else dayOut += Math.abs(qty);
+                    } else {
+                        dayIn += qty;
+                    }
+                } else if (item.type === 'OUT' || item.type === '出庫入力') {
+                    if (item.isSample) {
+                        daySample += qty;
+                    } else {
+                        dayOut += qty;
+                    }
+                }
+            });
+
+            // Update Stock
+            runningStock = runningStock + dayIn - dayOut - daySample;
+
+            history.push({
+                date: dateStr,
+                dateObj: dateObj,
+                in: dayIn,
+                out: dayOut,
+                sample: daySample,
+                stock: runningStock
+            });
+        }
+        return history;
     };
 
     const updateMemo = (productId, text) => {
