@@ -31,8 +31,6 @@ export default function InventoryTable() {
             <div className="space-y-2">
                 {CATEGORIES.map(category => {
                     const items = groupedItems[category] || [];
-                    // if (items.length === 0) return null; // Removed check to force display
-
                     const isOpen = openCategories[category];
 
                     return (
@@ -88,7 +86,7 @@ export default function InventoryTable() {
                                                     </div>
                                                 </div>
 
-                                                {/* Detail Row (Accordion) */}
+                                                {/* Detail Row (Accordion / Spreadsheet View) */}
                                                 {isProductOpen && (
                                                     <div className="bg-gray-50 p-3 text-xs border-t border-gray-100">
                                                         {/* Stats Grid */}
@@ -107,23 +105,23 @@ export default function InventoryTable() {
                                                             </div>
                                                         </div>
 
-                                                        {/* Daily History Table */}
+                                                        {/* Daily History Table (Spreadsheet Layout) */}
                                                         <div>
-                                                            <div className="text-gray-400 mb-2 font-bold">日別入出庫・在庫推移</div>
+                                                            <div className="text-gray-400 mb-2 font-bold">日別入出庫・在庫推移 (2026年2月)</div>
                                                             <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                                                                <table className="w-full text-center whitespace-nowrap">
-                                                                    <thead className="bg-gray-100 text-gray-500 font-medium">
+                                                                <table className="w-full text-center whitespace-nowrap table-fixed">
+                                                                    <thead className="bg-gray-100 text-gray-500 font-medium text-[10px]">
                                                                         <tr>
-                                                                            <th className="px-2 py-1">日付</th>
-                                                                            <th className="px-2 py-1 text-green-600">入庫</th>
-                                                                            <th className="px-2 py-1 text-red-600">出庫</th>
-                                                                            <th className="px-2 py-1 text-gray-500">サンプル</th>
-                                                                            <th className="px-2 py-1 text-blue-600">在庫</th>
+                                                                            <th className="px-1 py-1 w-16 text-left">日付</th>
+                                                                            <th className="px-1 py-1 text-green-600 w-10">入庫</th>
+                                                                            <th className="px-1 py-1 text-red-600 w-10">出庫</th>
+                                                                            <th className="px-1 py-1 text-gray-500 w-12">サンプル</th>
+                                                                            <th className="px-1 py-1 text-blue-600 w-12">在庫</th>
                                                                         </tr>
                                                                     </thead>
-                                                                    <tbody className="divide-y divide-gray-100 bg-white">
+                                                                    <tbody className="divide-y divide-gray-100 bg-white text-[11px]">
                                                                         {(item.dailyHistory || []).map((day, idx) => {
-                                                                            if (!day || !day.dateObj) return null; // Robust check
+                                                                            if (!day || !day.dateObj) return null;
                                                                             const dayOfWeek = day.dateObj.getDay(); // 0:Sun, 6:Sat
                                                                             const isSat = dayOfWeek === 6;
                                                                             const isSun = dayOfWeek === 0;
@@ -132,23 +130,19 @@ export default function InventoryTable() {
                                                                             if (isSat) rowClass = "bg-blue-50 text-blue-700 font-medium";
                                                                             if (isSun) rowClass = "bg-red-50 text-red-700 font-medium";
 
-                                                                            const dateLabel = `${day.dateObj.getMonth() + 1}/${day.dateObj.getDate()} (${['日', '月', '火', '水', '木', '金', '土'][dayOfWeek]})`;
+                                                                            const dateLabel = `${day.dateObj.getDate()} (${['日', '月', '火', '水', '木', '金', '土'][dayOfWeek]})`;
 
                                                                             return (
                                                                                 <tr key={idx} className={rowClass}>
                                                                                     <td className="px-2 py-1 text-left">{dateLabel}</td>
-                                                                                    <td className="px-2 py-1">{day.in > 0 ? day.in : '-'}</td>
-                                                                                    <td className="px-2 py-1">{day.out > 0 ? day.out : '-'}</td>
-                                                                                    <td className="px-2 py-1">{day.sample > 0 ? `(${day.sample})` : '-'}</td>
-                                                                                    <td className="px-2 py-1 font-bold">{day.stock.toLocaleString()}</td>
+                                                                                    {/* Show '0' if 0, per request "動きがない日も「0」で表示" */}
+                                                                                    <td className="px-1 py-1">{day.in}</td>
+                                                                                    <td className="px-1 py-1">{day.out}</td>
+                                                                                    <td className="px-1 py-1">{day.sample}</td>
+                                                                                    <td className="px-1 py-1 font-bold">{day.stock.toLocaleString()}</td>
                                                                                 </tr>
                                                                             );
                                                                         })}
-                                                                        {(!item.dailyHistory || item.dailyHistory.length === 0) && (
-                                                                            <tr>
-                                                                                <td colSpan="5" className="px-2 py-4 text-gray-400">データがありません</td>
-                                                                            </tr>
-                                                                        )}
                                                                     </tbody>
                                                                 </table>
                                                             </div>
@@ -168,7 +162,7 @@ export default function InventoryTable() {
             {/* Legend */}
             <div className="mt-8 p-4 text-xs text-gray-500 bg-white rounded-lg">
                 <p>※ (サ) はサンプル出庫数を含みます</p>
-                <p>※ 現在庫 = 1月末在庫(CSV) + 2月以降の入庫 - 2月以降の出庫</p>
+                <p>※ 現在庫 = 1月末在庫(CSV) + 2/1からの入出庫累積</p>
                 <p>※ <AlertTriangle size={12} className="inline text-red-500" /> マークは在庫が発注点を下回っています</p>
             </div>
         </div>

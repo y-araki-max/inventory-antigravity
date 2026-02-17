@@ -29,39 +29,43 @@ function NavButton({ to, icon, label }) {
 import { useEffect } from 'react';
 import { runMigration } from './utils/migration';
 
+import { ErrorBoundary } from './components/ErrorBoundary';
+
 function App() {
   useEffect(() => {
     runMigration();
   }, []);
 
   return (
-    <BrowserRouter>
-      {/* 画面全体 */}
-      <div className="flex flex-col h-screen bg-gray-50 text-gray-900">
+    <ErrorBoundary>
+      <BrowserRouter>
+        {/* 画面全体 */}
+        <div className="flex flex-col h-screen bg-gray-50 text-gray-900">
 
-        {/* メインエリア（ここに各ページが表示されます） */}
-        <div className="flex-1 overflow-auto">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/outbound" element={<Outbound />} />
-            <Route path="/inbound" element={<Inbound />} />
-            <Route path="/list" element={<InputDataList />} />
-            <Route path="/aggregation" element={<Aggregation />} />
-            <Route path="/inventory" element={<InventoryTable />} />
-          </Routes>
-        </div>
+          {/* メインエリア（ここに各ページが表示されます） */}
+          <div className="flex-1 overflow-auto">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/outbound" element={<Outbound />} />
+              <Route path="/inbound" element={<Inbound />} />
+              <Route path="/list" element={<InputDataList />} />
+              <Route path="/aggregation" element={<Aggregation />} />
+              <Route path="/inventory" element={<InventoryTable />} />
+            </Routes>
+          </div>
 
-        {/* 画面下のメニューバー */}
-        <div className="h-16 bg-white border-t border-gray-200 flex justify-around items-center shrink-0 z-40 shadow-lg safe-area-bottom">
-          <NavButton to="/" icon={<HomeIcon size={24} />} label="ホーム" />
-          <NavButton to="/outbound" icon={<Package size={24} />} label="出庫" />
-          <NavButton to="/inbound" icon={<Truck size={24} />} label="入庫" />
-          <NavButton to="/inventory" icon={<Calculator size={24} />} label="在庫表" />
-          <NavButton to="/aggregation" icon={<BarChart3 size={24} />} label="集計" />
-          <NavButton to="/list" icon={<ClipboardList size={24} />} label="一覧" />
+          {/* 画面下のメニューバー */}
+          <div className="h-16 bg-white border-t border-gray-200 flex justify-around items-center shrink-0 z-40 shadow-lg safe-area-bottom">
+            <NavButton to="/" icon={<HomeIcon size={24} />} label="ホーム" />
+            <NavButton to="/outbound" icon={<Package size={24} />} label="出庫" />
+            <NavButton to="/inbound" icon={<Truck size={24} />} label="入庫" />
+            <NavButton to="/inventory" icon={<Calculator size={24} />} label="在庫表" />
+            <NavButton to="/aggregation" icon={<BarChart3 size={24} />} label="集計" />
+            <NavButton to="/list" icon={<ClipboardList size={24} />} label="一覧" />
+          </div>
         </div>
-      </div>
-    </BrowserRouter>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 

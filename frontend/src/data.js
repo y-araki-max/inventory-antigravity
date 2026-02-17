@@ -1,4 +1,4 @@
-// Master Data v1.2
+// Master Data v2.0 (Strict Fix)
 // スタッフリスト
 export const STAFF_LIST = {
     PACKING: ['高塚', '鈴木', '山川'],
@@ -6,19 +6,18 @@ export const STAFF_LIST = {
     PLANNING: ['熊谷', '荒河']
 };
 
-// 商品カテゴリ
+// 商品カテゴリ（厳格な順序：全10項目）
 export const CATEGORIES = [
     "マルチ",
     "ビタミン",
     "ミネラル",
-    "オプショナル①",
-    "オプショナル②",
-    "オプショナル③",
-    "他社商品",
+    "オプショナル", // ①〜③を統合
+    "他社商品",    // 競合商品を統合
     "本",
-    "その他",
-    "その他2丹青",
-    "カスタム"
+    "その他",      // ケース・小冊子など
+    "その他2",     // 丹青・NMNなど
+    "カスタム",
+    "予備"
 ];
 
 // 商品リスト
@@ -53,30 +52,31 @@ export const PRODUCTS = [
     { id: 303, category: "ミネラル", name: "セレン", fullName: "セレン" },
     { id: 304, category: "ミネラル", name: "ヘム鉄", fullName: "ヘム鉄" },
 
-    // --- オプショナル① ---
-    { id: 401, category: "オプショナル①", name: "アンチ", fullName: "アンチオキシダント" },
-    { id: 402, category: "オプショナル①", name: "プテロ", fullName: "プテロスチルベン" },
-    { id: 403, category: "オプショナル①", name: "NMN", fullName: "NMN" },
-    { id: 404, category: "オプショナル①", name: "Q10", fullName: "コエンザイムQ10" },
-    { id: 405, category: "オプショナル①", name: "リポ酸", fullName: "α-リポ酸" },
+    // --- オプショナル (旧①〜③統合) ---
+    // UI上での区別のため、必要ならnameに(OP1)などをつける案もあるが、今回はシンプルに統合
+    { id: 401, category: "オプショナル", name: "アンチ", fullName: "アンチオキシダント" },
+    { id: 402, category: "オプショナル", name: "プテロ", fullName: "プテロスチルベン" },
+    { id: 403, category: "オプショナル", name: "NMN", fullName: "NMN" },
+    { id: 404, category: "オプショナル", name: "Q10", fullName: "コエンザイムQ10" },
+    { id: 405, category: "オプショナル", name: "リポ酸", fullName: "α-リポ酸" },
 
-    // --- オプショナル② ---
-    { id: 501, category: "オプショナル②", name: "グアガム", fullName: "サンファイバー（グアガム）" },
-    { id: 502, category: "オプショナル②", name: "シンバイオ", fullName: "シンバイオティクス" },
-    { id: 503, category: "オプショナル②", name: "ビフィ", fullName: "ビフィズス菌" },
-    { id: 504, category: "オプショナル②", name: "有胞子", fullName: "有胞子性乳酸菌" },
-    { id: 505, category: "オプショナル②", name: "サンプロ", fullName: "サンプロテクト" },
-    { id: 506, category: "オプショナル②", name: "コラエラ", fullName: "コラーゲン＆エラスチン" },
-    { id: 507, category: "オプショナル②", name: "AG", fullName: "AGハーブMIX" },
+    // 旧オプショナル②
+    { id: 501, category: "オプショナル", name: "グアガム", fullName: "サンファイバー（グアガム）" },
+    { id: 502, category: "オプショナル", name: "シンバイオ", fullName: "シンバイオティクス" },
+    { id: 503, category: "オプショナル", name: "ビフィ", fullName: "ビフィズス菌" },
+    { id: 504, category: "オプショナル", name: "有胞子", fullName: "有胞子性乳酸菌" },
+    { id: 505, category: "オプショナル", name: "サンプロ", fullName: "サンプロテクト" },
+    { id: 506, category: "オプショナル", name: "コラエラ", fullName: "コラーゲン＆エラスチン" },
+    { id: 507, category: "オプショナル", name: "AG", fullName: "AGハーブMIX" },
 
-    // --- オプショナル③ ---
-    { id: 601, category: "オプショナル③", name: "NAG", fullName: "N-アセチルグルコサミン" },
-    { id: 602, category: "オプショナル③", name: "フォーカス", fullName: "フォーカスサポート" },
-    { id: 603, category: "オプショナル③", name: "アミノ酸", fullName: "アミノ酸" },
-    { id: 604, category: "オプショナル③", name: "オメガ", fullName: "オメガ３" },
-    { id: 605, category: "オプショナル③", name: "メモリー", fullName: "メモリーサポート" },
-    { id: 606, category: "オプショナル③", name: "コリン", fullName: "ホスファチジルコリン" },
-    { id: 607, category: "オプショナル③", name: "抹茶", fullName: "抹茶" },
+    // 旧オプショナル③
+    { id: 601, category: "オプショナル", name: "NAG", fullName: "N-アセチルグルコサミン" },
+    { id: 602, category: "オプショナル", name: "フォーカス", fullName: "フォーカスサポート" },
+    { id: 603, category: "オプショナル", name: "アミノ酸", fullName: "アミノ酸" },
+    { id: 604, category: "オプショナル", name: "オメガ", fullName: "オメガ３" },
+    { id: 605, category: "オプショナル", name: "メモリー", fullName: "メモリーサポート" },
+    { id: 606, category: "オプショナル", name: "コリン", fullName: "ホスファチジルコリン" },
+    { id: 607, category: "オプショナル", name: "抹茶", fullName: "抹茶" },
 
     // --- 他社商品 ---
     { id: 701, category: "他社商品", name: "エナジー", fullName: "エナジーアシストQ10" },
@@ -100,42 +100,44 @@ export const PRODUCTS = [
     { id: 905, category: "その他", name: "C-5ジェル", fullName: "C-5 ジェル" },
     { id: 906, category: "その他", name: "ヒアルロン酸", fullName: "ヒアルロン酸" },
 
-    // --- その他2丹青 ---
-    { id: 950, category: "その他2丹青", name: "丹青", fullName: "丹青" },
-    { id: 951, category: "その他2丹青", name: "NMN（ケイ）", fullName: "NMN（ケイ）" },
+    // --- その他2 (丹青 etc) ---
+    { id: 950, category: "その他2", name: "丹青", fullName: "丹青" },
+    { id: 951, category: "その他2", name: "NMN（ケイ）", fullName: "NMN（ケイ）" },
 
     // --- カスタム ---
     { id: 991, category: "カスタム", name: "田中 孝 様", fullName: "田中 孝 様" },
     { id: 992, category: "カスタム", name: "村上 様", fullName: "村上 様" }
 ];
 
+// 用語正規化ロジック (Strict)
 export const normalizeTerm = (term) => {
     if (!term) return '';
-    // 完全一致または前方一致での置換
-    if (term === '特別作戦' || term === '特別作戦①') return 'オプショナル①'; // "特別作戦"単体は文脈によるが、マスタ上は①〜③ある。一旦①へ？それとも"オプショナル"カテゴリ自体？
-    // User said: "特別作戦 ⇒ オプショナル（※特別作戦②も「オプショナル②」に修正）"
-    // CATEGORIES has "オプショナル①", "オプショナル②", "オプショナル③".
-    // If data says "特別作戦", it often maps to "オプショナル①" or just "オプショナル" if it's a rough category.
-    // Let's iterate carefully.
+    let normalized = term;
 
-    if (term === '特別作戦' || term === '特別作戦①') return 'オプショナル①';
-    if (term === '特別作戦②' || term === '特別作戦2') return 'オプショナル②';
-    if (term === '特別作戦③' || term === '特別作戦3') return 'オプショナル③';
+    // 1. カテゴリ系の正規化
+    if (normalized.includes('特別作戦') || normalized.includes('オプショナル')) {
+        return 'オプショナル';
+    }
+    if (normalized === '競合商品') return '他社商品';
+    if (normalized === 'その他2丹青') return 'その他2';
 
-    // Catch-all for "特別作戦" prefix if not matched above (safety)
-    if (term.includes('特別作戦')) {
-        return term.replace('特別作戦', 'オプショナル');
+    // 2. 動作・種別系の正規化
+    if (normalized === '受け取り' || normalized === '受取' || normalized === '受け取り入力' || normalized === '受け取り入力 / 受取') {
+        return '出庫入力'; // ご指定: "受け取り, 受け取り入力 ⇒ 出庫入力"
+        // 注意: 以前のコードであえて '出庫' にしていた場合は '出庫入力' に統一
     }
 
-    if (term === '受け取り' || term === '受取' || term === '受け取り入力' || term === '受け取り入力 / 受取') return '出庫';
-    if (term === '有細胞子') return '有胞子';
-    if (term === 'エネルギー') return 'エナジー';
-    if (term === '質問10' || term === 'Q10' || term === '質問１０') return 'Q10';
-    if (term === '競合商品') return '他社商品';
-    if (term === 'ボス' || term === 'ぼす' || term === 'BOSS / Staff') return 'BOSS';
+    // 3. 商品名・その他用語の正規化
+    if (normalized === '有細胞子') return '有胞子';
+    if (normalized === 'エネルギー') return 'エナジー';
+    if (normalized === '質問10' || normalized === 'Q10' || normalized === '質問１０') return 'Q10';
+    if (normalized === 'ボス' || normalized === 'ぼす' || normalized === 'BOSS / Staff') return 'BOSS';
 
-    if (term.includes('いん')) return term.replace('いん', 'アミノ酸');
+    // 部分一致置換
+    if (normalized.includes('いん')) {
+        normalized = normalized.replace('いん', 'アミノ酸');
+    }
 
-    return term;
+    return normalized;
 };
 
