@@ -43,16 +43,11 @@ export default function InventoryTable() {
 
     if (loading) return <div className="p-8 text-center bg-gray-50 text-gray-600">読み込み中...</div>;
 
-    // Grouping
-    let groupedItems = {};
-    try {
-        groupedItems = CATEGORIES.reduce((acc, cat) => {
-            acc[cat] = Object.values(inventory).filter(item => item.category === cat);
-            return acc;
-        }, {});
-    } catch (e) {
-        return <div className="p-4 text-red-500">データエラー。リロードしてください。</div>;
-    }
+    // Group PRODUCTS (Master Data) by Category to ensure display even if inventory state is empty
+    const groupedItems = CATEGORIES.reduce((acc, cat) => {
+        acc[cat] = PRODUCTS.filter(p => p.category === cat);
+        return acc;
+    }, {});
 
     return (
         <div className="pb-32 p-2 bg-gray-50 min-h-screen">
@@ -101,7 +96,16 @@ export default function InventoryTable() {
 
                             {isOpen && (
                                 <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-white">
-                                    {items.map(item => {
+                                    {items.map(product => {
+                                        // Safe Data Lookup
+                                        const item = inventory[product.id] || {
+                                            ...product,
+                                            currentStock: 0,
+                                            dailyHistory: [],
+                                            lots: [],
+                                            memo: ''
+                                        };
+
                                         const rp = item.reorderPoint !== '-' ? item.reorderPoint : 0;
                                         const isLowStock = rp > 0 && item.currentStock <= rp;
                                         const isCalendarOpen = expandedProducts.has(item.id);
