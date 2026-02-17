@@ -6,6 +6,9 @@ import { parseInventoryCSV } from '../utils/csvParser';
 import multiCsv from '../assets/csv/multi_202601.csv?raw'; // Raw import
 
 export const useInventory = () => {
+    const [inventory, setInventory] = useState({});
+    const [loading, setLoading] = useState(true);
+    const location = useLocation(); // Re-fetch on navigation if needed
     const [memos, setMemos] = useState({});
 
     useEffect(() => {
