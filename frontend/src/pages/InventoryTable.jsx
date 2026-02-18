@@ -63,8 +63,19 @@ export default function InventoryTable() {
                         onChange={(e) => setViewYear(Number(e.target.value))}
                         className="font-bold text-gray-700 bg-transparent border-none focus:ring-0 cursor-pointer"
                     >
-                        <option value={2026}>2026年</option>
-                        <option value={2025}>2025年</option>
+                        {(() => {
+                            const currentYear = new Date().getFullYear();
+                            // Generate range: Current - 1 to Current + 5
+                            const startYear = currentYear - 1;
+                            const endYear = currentYear + 5;
+                            const years = [];
+                            for (let y = startYear; y <= endYear; y++) {
+                                years.push(y);
+                            }
+                            return years.map(year => (
+                                <option key={year} value={year}>{year}年</option>
+                            ));
+                        })()}
                     </select>
                     <select
                         value={viewMonth}
