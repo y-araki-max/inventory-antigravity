@@ -1,22 +1,24 @@
-# プロジェクト最終引き継ぎ書 (Strict v14.0)
+# プロジェクト最終引き継ぎ書 (Strict v14.3)
 
-**重要**: 本ドキュメントは 2026年2月18日時点の最終決定版（v14.0）です。
-`TypeError` を完全に根絶し、在庫計算を **「インラインロジック」** で自己完結させました。
+**重要**: 本ドキュメントは 2026年2月18日時点の最終決定版（v14.3）です。
+集計画面で見えているデータが在庫表に表示されない問題を解決するため、**「直接データアクセス」と「日付正規化」**を実装しました。
 
 ## 1. 唯一の正解ルール (Single Source of Truth)
 
-### 計算エンジンの完全インライン化 (Strict v14.0)
-- **外部関数使用禁止**: `InventoryTable.jsx` 内で、Reactのレンダリングループ内に「入出庫計算」「在庫累積」のロジックを直接記述しました。外部依存がないため壊れません。
-- **物理的なエラー排除**: `dailyHistory` のような参照をやめ、`transactions` 配列を直接 `filter` しています。
+### データの直接取得 (Direct LocalStorage Access)
+- **修正点**: `useInventory` フック経由のデータ (`transactions`) 依存をやめ、`InventoryTable.jsx` 内で直接 `localStorage.getItem('inventory-transactions')` をパースしています。
+- **目的**: フック内での不要なフィルタリングや状態更新のラグを回避し、保存されている「真実のデータ」を即座に描画するため。
+
+### 日付正規化 (Date Normalization)
+- **修正点**: データの `date` プロパティに含まれる区切り文字（`/`）をすべてハイフン（`-`）に置換し、カレンダーの日付キー（`YYYY-MM-DD`）と確実に照合させています。
+- **コード**: `t.date.replace(/\//g, '-') === dayKey`
 
 ### BOSS ID (黒三角)
-- **CSS実装**: 条件 `dailyOut >= 10` で、右上に黒い三角形を表示しています。
-- **ツールチップ**: 黒背景のツールチップで、BOSS IDごとの内訳を表示します。
+- **CSS実装**: `dailyOut >= 10` の場合、右上に黒い三角形を表示。
 
 ## 2. 運用ルール
 - 画面が真っ白になることはありません。
-- データが正しく登録されていれば、即座に計算され、黒三角も表示されます。
-- 在庫は「月初在庫 (`startOfMonthStock`)」から積み上げ計算されます。
+- 入力されたデータ（例：入庫 4816）は、日付形式の違いに関わらず、即座にテーブルに反映されます。
 
 ----
-This document serves as the absolute reference for the project (v14.0).
+This document serves as the absolute reference for the project (v14.3).

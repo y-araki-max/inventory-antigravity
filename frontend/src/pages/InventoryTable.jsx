@@ -11,7 +11,7 @@ export default function InventoryTable() {
         adjustStock,
         viewYear, setViewYear,
         viewMonth, setViewMonth,
-        transactions // Strict v13.3: for Inline Calc
+        transactions // Keeping this import for reference, but v14.3 uses direct LS for reliability
     } = useInventory();
 
     const [openCategories, setOpenCategories] = useState({});
@@ -54,7 +54,7 @@ export default function InventoryTable() {
         <div className="pb-32 p-2 bg-gray-50 min-h-screen">
             {/* Header with Month Selector */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 ml-2 mr-2">
-                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v14.0)</h1>
+                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v14.3)</h1>
 
                 <div className="flex items-center gap-2 bg-white p-2 rounded shadow-sm border border-gray-200">
                     <Calendar size={18} className="text-blue-600" />
@@ -212,7 +212,7 @@ export default function InventoryTable() {
                                                                 </thead>
                                                                 <tbody>
                                                                     {(() => {
-                                                                        // Strict v14.0: INLINE CALCULATION ENGINE (No External Calls)
+                                                                        // Strict v14.3: DIRECT DATA ACCESS & DATE NORMALIZATION
 
                                                                         // 1. Setup Dates
                                                                         let y = Number(viewYear) || 2026;
@@ -220,13 +220,17 @@ export default function InventoryTable() {
                                                                         let daysInMonth = new Date(y, m, 0).getDate();
                                                                         if (isNaN(daysInMonth)) daysInMonth = 31;
 
-                                                                        // 2. Initial Stock Setup
-                                                                        // Use useInventory's calculated startOfMonthStock if available, else 0.
+                                                                        // 2. Initial Stock
+                                                                        // We use the startOfMonthStock calculated by useInventory (which also uses Transactions but logic might differ)
+                                                                        // For consistency with "true" stock, we rely on item's carry-forward.
                                                                         let currentStock = (typeof item.startOfMonthStock === 'number') ? item.startOfMonthStock : 0;
 
-                                                                        // 3. Transactions Filter (Optimization: Filter by Product ID once)
-                                                                        const safeTxs = Array.isArray(transactions) ? transactions : [];
-                                                                        const productTxs = safeTxs.filter(t => t.productId == item.id);
+                                                                        // 3. DIRECT LOCALSTORAGE READ (As requested for immediate truth)
+                                                                        // Fetch ALL transactions to ensure we bypass any stale state in useInventory hook
+                                                                        const allTxs = JSON.parse(localStorage.getItem('inventory-transactions') || '[]');
+
+                                                                        // Pre-filter by Product ID for performance (strictly string/number safe)
+                                                                        const productTxs = allTxs.filter(t => String(t.productId) === String(item.id));
 
                                                                         // 4. Render Days
                                                                         return Array.from({ length: daysInMonth }, (_, i) => i + 1).map((d) => {
@@ -244,11 +248,13 @@ export default function InventoryTable() {
                                                                             const textClass = isSat ? 'text-blue-600 font-bold' : isSun ? 'text-red-600 font-bold' : 'text-gray-700 font-bold';
 
                                                                             // 5. INLINE DATA CALCULATION
-                                                                            // Filter transactions for this specific day
+                                                                            // Filter using Robust Date Matching (Handle '/' vs '-')
                                                                             const dayTxs = productTxs.filter(t => {
                                                                                 if (!t.date) return false;
-                                                                                const tDate = t.date.includes('T') ? t.date.split('T')[0] : t.date;
-                                                                                return tDate === dayKey;
+                                                                                // Normalize: 2026/02/18 -> 2026-02-18
+                                                                                const tDateOnly = t.date.split('T')[0];
+                                                                                const formattedDate = tDateOnly.replace(/\//g, '-');
+                                                                                return formattedDate === dayKey;
                                                                             });
 
                                                                             // Calculate Sums
@@ -258,7 +264,7 @@ export default function InventoryTable() {
                                                                             let bossDetails = [];
 
                                                                             dayTxs.forEach(t => {
-                                                                                const qty = parseInt(t.quantity || 0);
+                                                                                const qty = parseInt(t.quantity || 0, 10);
                                                                                 const type = t.type ? t.type.toUpperCase() : '';
 
                                                                                 if (type === 'IN' || type === 'ADJUST') {
@@ -279,6 +285,8 @@ export default function InventoryTable() {
                                                                                             quantity: qty
                                                                                         });
                                                                                     }
+                                                                                } else if (type === 'SAMPLE') {
+                                                                                    dailySample += qty;
                                                                                 }
                                                                             });
 
