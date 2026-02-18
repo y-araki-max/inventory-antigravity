@@ -4,6 +4,7 @@ import { CATEGORIES, PRODUCTS } from '../data';
 import { MapPin, Edit2, ChevronDown, ChevronUp, Calendar } from 'lucide-react';
 
 export default function InventoryTable() {
+    // 1. Hook Normalization (Unused destructuring removed to prevent errors, keeping basic state)
     const {
         inventory,
         loading,
@@ -11,7 +12,6 @@ export default function InventoryTable() {
         adjustStock,
         viewYear, setViewYear,
         viewMonth, setViewMonth,
-        transactions // Keeping this import for reference, but v14.3 uses direct LS for reliability
     } = useInventory();
 
     const [openCategories, setOpenCategories] = useState({});
@@ -44,7 +44,6 @@ export default function InventoryTable() {
 
     if (loading) return <div className="p-8 text-center bg-gray-50 text-gray-600">読み込み中...</div>;
 
-    // Group PRODUCTS (Master Data) by Category to ensure display even if inventory state is empty
     const groupedItems = CATEGORIES.reduce((acc, cat) => {
         acc[cat] = PRODUCTS.filter(p => p.category === cat);
         return acc;
@@ -52,9 +51,8 @@ export default function InventoryTable() {
 
     return (
         <div className="pb-32 p-2 bg-gray-50 min-h-screen">
-            {/* Header with Month Selector */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 ml-2 mr-2">
-                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v14.3)</h1>
+                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v15.0)</h1>
 
                 <div className="flex items-center gap-2 bg-white p-2 rounded shadow-sm border border-gray-200">
                     <Calendar size={18} className="text-blue-600" />
@@ -66,7 +64,6 @@ export default function InventoryTable() {
                     >
                         {(() => {
                             const currentYear = new Date().getFullYear();
-                            // Generate range: Current - 1 to Current + 5
                             const startYear = currentYear - 1;
                             const endYear = currentYear + 5;
                             const years = [];
@@ -109,7 +106,6 @@ export default function InventoryTable() {
                             {isOpen && (
                                 <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-white">
                                     {items.map(product => {
-                                        // Safe Data Lookup
                                         const item = inventory[product.id] || {
                                             ...product,
                                             currentStock: 0,
@@ -212,7 +208,8 @@ export default function InventoryTable() {
                                                                 </thead>
                                                                 <tbody>
                                                                     {(() => {
-                                                                        // Strict v14.3: DIRECT DATA ACCESS & DATE NORMALIZATION
+                                                                        // Strict v15.0: FORCED INLINE IMPLEMENTATION
+                                                                        // "Pump-less" Direct Logic as requested by User
 
                                                                         // 1. Setup Dates
                                                                         let y = Number(viewYear) || 2026;
@@ -221,22 +218,19 @@ export default function InventoryTable() {
                                                                         if (isNaN(daysInMonth)) daysInMonth = 31;
 
                                                                         // 2. Initial Stock
-                                                                        // We use the startOfMonthStock calculated by useInventory (which also uses Transactions but logic might differ)
-                                                                        // For consistency with "true" stock, we rely on item's carry-forward.
+                                                                        // Use carry-over stock from item prop
                                                                         let currentStock = (typeof item.startOfMonthStock === 'number') ? item.startOfMonthStock : 0;
 
-                                                                        // 3. DIRECT LOCALSTORAGE READ (As requested for immediate truth)
-                                                                        // Fetch ALL transactions to ensure we bypass any stale state in useInventory hook
-                                                                        const allTxs = JSON.parse(localStorage.getItem('inventory-transactions') || '[]');
-
-                                                                        // Pre-filter by Product ID for performance (strictly string/number safe)
-                                                                        const productTxs = allTxs.filter(t => String(t.productId) === String(item.id));
+                                                                        // 3. DIRECT LOCALSTORAGE READ (The "Pump-less" approach)
+                                                                        // Directly reading from LS to bypass any hook state issues
+                                                                        const rawData = localStorage.getItem('inventory-transactions');
+                                                                        const allTransactions = JSON.parse(rawData || '[]');
 
                                                                         // 4. Render Days
                                                                         return Array.from({ length: daysInMonth }, (_, i) => i + 1).map((d) => {
-                                                                            // Date String: YYYY-MM-DD
-                                                                            const mStr = m < 10 ? '0' + m : m;
-                                                                            const dStr = d < 10 ? '0' + d : d;
+                                                                            // Formatted Date Key
+                                                                            const mStr = String(m).padStart(2, '0');
+                                                                            const dStr = String(d).padStart(2, '0');
                                                                             const dayKey = `${y}-${mStr}-${dStr}`;
 
                                                                             // Styling
@@ -247,51 +241,56 @@ export default function InventoryTable() {
                                                                             const rowClass = isSat ? 'bg-blue-50' : isSun ? 'bg-red-50' : (d % 2 === 0 ? 'bg-white' : 'bg-gray-50');
                                                                             const textClass = isSat ? 'text-blue-600 font-bold' : isSun ? 'text-red-600 font-bold' : 'text-gray-700 font-bold';
 
-                                                                            // 5. INLINE DATA CALCULATION
-                                                                            // Filter using Robust Date Matching (Handle '/' vs '-')
-                                                                            const dayTxs = productTxs.filter(t => {
-                                                                                if (!t.date) return false;
-                                                                                // Normalize: 2026/02/18 -> 2026-02-18
-                                                                                const tDateOnly = t.date.split('T')[0];
-                                                                                const formattedDate = tDateOnly.replace(/\//g, '-');
-                                                                                return formattedDate === dayKey;
+                                                                            // 5. INLINE FILTERING & CALCULATION
+                                                                            // "Directly filter within the date loop" (optimized by filtering by product ID first? 
+                                                                            // User asked for "Direct filtering in loop", but doing it 100% strictly as requested might be slow.
+                                                                            // However, I will follow the user's logic structure: filter -> calc.
+
+                                                                            const dayData = allTransactions.filter(t => {
+                                                                                // Unify date format (replace / with -)
+                                                                                const formattedDate = (t.date || '').replace(/\//g, '-').split('T')[0];
+                                                                                // Match Date AND Product ID
+                                                                                // Safe conversion (String vs Number)
+                                                                                return formattedDate === dayKey && String(t.productId) === String(item.id);
                                                                             });
 
-                                                                            // Calculate Sums
-                                                                            let dailyIn = 0;
-                                                                            let dailyOut = 0;
-                                                                            let dailySample = 0;
+                                                                            // 6. Calculate Sums
+                                                                            let dIn = 0, dOut = 0, dSample = 0;
                                                                             let bossDetails = [];
 
-                                                                            dayTxs.forEach(t => {
-                                                                                const qty = parseInt(t.quantity || 0, 10);
-                                                                                const type = t.type ? t.type.toUpperCase() : '';
+                                                                            dayData.forEach(t => {
+                                                                                const q = parseInt(t.quantity, 10) || 0;
+                                                                                // Handle case-insensitive type checks or specific Japanese inputs if any
+                                                                                const type = (t.type || '').toLowerCase();
 
-                                                                                if (type === 'IN' || type === 'ADJUST') {
-                                                                                    if (type === 'ADJUST') {
-                                                                                        if (qty >= 0) dailyIn += qty;
-                                                                                        else dailyOut += Math.abs(qty);
+                                                                                if (type === 'in' || type === 'adjust') {
+                                                                                    if (type === 'adjust') {
+                                                                                        if (q >= 0) dIn += q;
+                                                                                        else dOut += Math.abs(q);
                                                                                     } else {
-                                                                                        dailyIn += qty;
+                                                                                        dIn += q;
                                                                                     }
-                                                                                } else if (type === 'OUT' || type === '出庫入力') {
+                                                                                } else if (type === 'out' || type === '出庫入力') {
                                                                                     if (t.isSample) {
-                                                                                        dailySample += qty;
+                                                                                        dSample += q;
                                                                                     } else {
-                                                                                        dailyOut += qty;
-                                                                                        // Boss ID Collection
-                                                                                        bossDetails.push({
-                                                                                            bossId: t.bossId || '不明',
-                                                                                            quantity: qty
-                                                                                        });
+                                                                                        dOut += q;
+                                                                                        bossDetails.push(t.bossId || '不明');
                                                                                     }
-                                                                                } else if (type === 'SAMPLE') {
-                                                                                    dailySample += qty;
+                                                                                } else if (type === 'sample') {
+                                                                                    dSample += q;
                                                                                 }
                                                                             });
 
-                                                                            // 6. Update Running Stock
-                                                                            currentStock = currentStock + dailyIn - dailyOut - dailySample;
+                                                                            // 7. Update Stock
+                                                                            currentStock = currentStock + dIn - dOut - dSample;
+
+                                                                            // BOSS ID Alert Handler
+                                                                            const handleBossClick = () => {
+                                                                                if (bossDetails.length > 0) {
+                                                                                    alert(`【BOSS ID一覧】\n${bossDetails.join('\n')}`);
+                                                                                }
+                                                                            };
 
                                                                             return (
                                                                                 <tr key={`${dayKey}-${item.id}`} className={`${rowClass} border-b border-gray-100 last:border-0`}>
@@ -299,54 +298,34 @@ export default function InventoryTable() {
 
                                                                                     {/* IN */}
                                                                                     <td className="p-1 border-l border-gray-100 text-blue-600 font-medium">
-                                                                                        {dailyIn > 0 ? dailyIn : ''}
+                                                                                        {dIn > 0 ? dIn : ''}
                                                                                     </td>
 
                                                                                     {/* OUT & BOSS INDICATOR */}
-                                                                                    <td className="p-1 border-l border-gray-100 text-gray-600 relative group">
-                                                                                        {dailyOut > 0 ? dailyOut : ''}
+                                                                                    <td
+                                                                                        className="p-1 border-l border-gray-100 text-gray-600 relative group cursor-pointer hover:bg-gray-100 transition-colors"
+                                                                                        onClick={dOut >= 10 ? handleBossClick : undefined}
+                                                                                    >
+                                                                                        {dOut > 0 ? dOut : ''}
 
                                                                                         {/* Black Triangle for >= 10 */}
-                                                                                        {dailyOut >= 10 && (
-                                                                                            <>
-                                                                                                <div
-                                                                                                    className="absolute top-0 right-0 pointer-events-none"
-                                                                                                    style={{
-                                                                                                        width: 0,
-                                                                                                        height: 0,
-                                                                                                        borderStyle: 'solid',
-                                                                                                        borderWidth: '0 8px 8px 0',
-                                                                                                        borderColor: 'transparent #000000 transparent transparent'
-                                                                                                    }}
-                                                                                                />
-                                                                                                {/* Tooltip */}
-                                                                                                <div className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 z-50">
-                                                                                                    <div className="bg-gray-900 text-white text-xs rounded shadow-lg overflow-hidden min-w-[120px]">
-                                                                                                        <div className="bg-gray-800 p-1 border-b border-gray-700 text-center font-bold text-yellow-400">
-                                                                                                            出庫計: {dailyOut}
-                                                                                                        </div>
-                                                                                                        <div className="p-2">
-                                                                                                            {bossDetails.length > 0 ? (
-                                                                                                                bossDetails.map((bd, bi) => (
-                                                                                                                    <div key={bi} className="flex justify-between gap-3 text-[10px] whitespace-nowrap">
-                                                                                                                        <span>{bd.bossId}</span>
-                                                                                                                        <span className="font-bold">{bd.quantity}</span>
-                                                                                                                    </div>
-                                                                                                                ))
-                                                                                                            ) : (
-                                                                                                                <div className="text-gray-500 italic">...</div>
-                                                                                                            )}
-                                                                                                        </div>
-                                                                                                    </div>
-                                                                                                    <div className="w-2 h-2 bg-gray-900 transform rotate-45 mx-auto -mt-1"></div>
-                                                                                                </div>
-                                                                                            </>
+                                                                                        {dOut >= 10 && (
+                                                                                            <div
+                                                                                                className="absolute top-0 right-0 pointer-events-none"
+                                                                                                style={{
+                                                                                                    width: 0,
+                                                                                                    height: 0,
+                                                                                                    borderStyle: 'solid',
+                                                                                                    borderWidth: '0 8px 8px 0',
+                                                                                                    borderColor: 'transparent #000000 transparent transparent'
+                                                                                                }}
+                                                                                            />
                                                                                         )}
                                                                                     </td>
 
                                                                                     {/* SAMPLE */}
                                                                                     <td className="p-1 border-l border-gray-100 text-green-600">
-                                                                                        {dailySample > 0 ? dailySample : ''}
+                                                                                        {dSample > 0 ? dSample : ''}
                                                                                     </td>
 
                                                                                     {/* STOCK */}
