@@ -200,14 +200,22 @@ export default function InventoryTable() {
                                                                 </thead>
                                                                 <tbody>
                                                                     {(() => {
-                                                                        // Strict v11.1: Force Render Rows based on View Month
+                                                                        // Strict v11.2: Debug & Force Render
                                                                         const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
+                                                                        console.log(`[Calendar Debug] Year: ${viewYear}, Month: ${viewMonth}, Days: ${daysInMonth}`);
+
+                                                                        if (!daysInMonth || isNaN(daysInMonth)) {
+                                                                            return <tr><td colSpan="5" className="text-red-500">日付取得エラー</td></tr>;
+                                                                        }
+
                                                                         return Array.from({ length: daysInMonth }, (_, i) => i + 1).map((d) => {
                                                                             const dateObj = new Date(viewYear, viewMonth - 1, d);
                                                                             const dayNum = dateObj.getDay();
                                                                             const isSat = dayNum === 6;
                                                                             const isSun = dayNum === 0;
                                                                             const rowClass = isSat ? 'bg-blue-50' : isSun ? 'bg-red-50' : (d % 2 === 0 ? 'bg-white' : 'bg-gray-50');
+
+                                                                            // Format YYYY-MM-DD
                                                                             const dateStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
                                                                             // Robust Lookup
@@ -215,8 +223,8 @@ export default function InventoryTable() {
 
                                                                             return (
                                                                                 <tr key={d} className={`${rowClass} border-b border-gray-100 last:border-0`}>
-                                                                                    {/* Strict v11.1: Weekend Colors */}
-                                                                                    <td className={`p-1 font-bold ${isSat ? 'text-blue-600' : isSun ? 'text-red-500' : 'text-gray-700'}`}>
+                                                                                    {/* Strict v11.2: Weekend Colors (Inline) */}
+                                                                                    <td className={`p-1 font-bold ${isSat ? 'text-blue-600' : isSun ? 'text-red-600' : 'text-gray-700'}`}>
                                                                                         {d}
                                                                                     </td>
                                                                                     <td className="p-1 border-l border-gray-100 text-blue-600">
