@@ -257,8 +257,26 @@ export default function InventoryTable() {
                                                                                     <td className="p-1 border-l border-gray-100 text-blue-600">
                                                                                         {dayData && dayData.in > 0 ? dayData.in : ''}
                                                                                     </td>
-                                                                                    <td className="p-1 border-l border-gray-100 text-gray-600">
+                                                                                    {/* Strict v13: Large Purchase Indicator */}
+                                                                                    <td className="p-1 border-l border-gray-100 text-gray-600 relative group">
                                                                                         {dayData && dayData.out > 0 ? dayData.out : ''}
+                                                                                        {dayData && dayData.out >= 10 && (
+                                                                                            <>
+                                                                                                <span className="absolute top-0 right-0 text-[8px] text-green-500 transform translate-x-1 -translate-y-1">
+                                                                                                    🚩
+                                                                                                </span>
+                                                                                                {/* Tooltip */}
+                                                                                                <div className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 p-2 bg-gray-800 text-white text-xs rounded shadow-lg z-50 whitespace-nowrap min-w-[150px]">
+                                                                                                    <div className="font-bold border-b border-gray-600 mb-1 pb-1">内訳 (計{dayData.out}個)</div>
+                                                                                                    {dayData.outDetails && dayData.outDetails.map((detail, idx) => (
+                                                                                                        <div key={idx} className="flex justify-between">
+                                                                                                            <span>{detail.bossId}</span>
+                                                                                                            <span className="font-bold">{detail.quantity}個</span>
+                                                                                                        </div>
+                                                                                                    ))}
+                                                                                                </div>
+                                                                                            </>
+                                                                                        )}
                                                                                     </td>
                                                                                     <td className="p-1 border-l border-gray-100 text-green-600">
                                                                                         {dayData && dayData.sample > 0 ? dayData.sample : ''}

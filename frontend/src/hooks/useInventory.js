@@ -167,13 +167,17 @@ export const useInventory = () => {
             let dayIn = 0;
             let dayOut = 0;
             let daySample = 0;
+            let dayOutDetails = []; // Strict v13: Large Purchase Details
 
             dayItems.forEach(item => {
                 const qty = parseInt(item.quantity || 0);
                 if (item.type === 'IN' || item.type === 'ADJUST') {
                     if (item.type === 'ADJUST') {
                         if (qty >= 0) dayIn += qty;
-                        else dayOut += Math.abs(qty);
+                        else {
+                            dayOut += Math.abs(qty);
+                            // Adjust doesn't usually have bossId, but if so add it
+                        }
                     } else {
                         dayIn += qty;
                     }
@@ -182,6 +186,12 @@ export const useInventory = () => {
                         daySample += qty;
                     } else {
                         dayOut += qty;
+                        // Strict v13: Collect Details
+                        dayOutDetails.push({
+                            bossId: item.bossId || '不明',
+                            quantity: qty,
+                            uuid: item.uuid
+                        });
                     }
                 }
             });
@@ -194,6 +204,7 @@ export const useInventory = () => {
                 dateObj: dateObj,
                 in: dayIn,
                 out: dayOut,
+                outDetails: dayOutDetails, // Added for v13
                 sample: daySample,
                 stock: runningStock
             });
