@@ -21,11 +21,18 @@ export default function InventoryTable() {
     const [adjustValue, setAdjustValue] = useState('');
 
     // -------------------------------------------------------------------------
-    // 1. DATA LOADING (Direct from LocalStorage)
+    // 1. DATA LOADING (CORRECTED SOURCE)
     // -------------------------------------------------------------------------
     useEffect(() => {
-        const txRaw = localStorage.getItem('inventory-transactions');
+        // STRICT V19.0: Use 'inventory-data' matching storage.js
+        const txRaw = localStorage.getItem('inventory-data'); // WAS: inventory-transactions
         const txData = JSON.parse(txRaw || '[]');
+
+        console.log("=== STRICT V19.0 DATA LOAD ===");
+        console.log("Key: inventory-data");
+        console.log("Count:", txData.length);
+        console.table(txData.slice(0, 10)); // Show header
+
         setAllTransactions(txData);
 
         const memoRaw = localStorage.getItem('inventory-memos');
@@ -33,43 +40,49 @@ export default function InventoryTable() {
     }, [viewYear, viewMonth]);
 
     // -------------------------------------------------------------------------
-    // HELPERS: LOOSE MATCHING
+    // HELPERS: LOOSE MATCHING (ID OR NAME)
     // -------------------------------------------------------------------------
 
-    // ID Check: Loose Equality
-    const isIdMatch = (txId, productId) => {
-        // "String().valueOf() == String().valueOf()" as requested, though '==' matches loose types anyway.
-        // We use String() to ensure safety against null/undefined.
-        return String(txId).valueOf() == String(productId).valueOf();
+    // Product Matcher
+    const isProductMatch = (t, product) => {
+        // 1. ID Match (Loose)
+        // Check if t.productId exists. storage.js saves it as 'id' or 'productId'?
+        // storage.js: newItem = { ..., productId: item.id, ... }
+        if (t.productId && String(t.productId) == String(product.id)) return true;
+
+        // 2. Name Match (Fallback)
+        // storage.js might save 'name' (e.g. "大ボトル")
+        if (t.name && t.name === product.name) return true;
+
+        return false;
     };
 
-    // Date To "Numbers String": "2026/02/18" -> "2026218"
+    // Date Matcher (Numeric String)
     const getDateKey = (dateStr) => {
         if (!dateStr) return '';
-        // "t.date.match(/\d+/g).map(Number).join('')"
         const matches = dateStr.match(/\d+/g);
         if (!matches) return '';
         return matches.map(Number).join('');
     };
 
-    const getStockContext = (productId) => {
+    const getStockContext = (product) => {
         let stock = 0;
         let latestLot = '-';
 
         allTransactions.forEach(t => {
-            if (!isIdMatch(t.productId, productId)) return;
+            if (!isProductMatch(t, product)) return;
 
             const qty = parseInt(t.quantity, 10) || 0;
-            const type = (t.type || '').toLowerCase();
+            const type = (t.type || '').toUpperCase(); // Normalized
 
-            if (type === 'in' || type === 'adjust') {
-                if (type === 'adjust') {
+            if (type === 'IN' || type === 'ADJUST') {
+                if (type === 'ADJUST') {
                     stock += qty;
                 } else {
                     stock += qty;
                     if (t.lot) latestLot = t.lot;
                 }
-            } else if (type === 'out' || type === '出庫入力' || type === 'sample') {
+            } else if (type === 'OUT' || type === 'SAMPLE') {
                 stock -= qty;
             }
         });
@@ -95,15 +108,16 @@ export default function InventoryTable() {
         const val = parseInt(adjustValue);
         if (!isNaN(val)) {
             const record = {
-                id: crypto.randomUUID(),
+                uuid: crypto.randomUUID(), // storage.js uses uuid
                 productId: adjustTarget.id,
+                name: adjustTarget.name, // Save Name too
                 type: 'ADJUST',
                 quantity: val - adjustTarget.currentStock,
                 date: new Date().toISOString(),
                 bossId: '在庫修正'
             };
             const newTxs = [...allTransactions, record];
-            localStorage.setItem('inventory-transactions', JSON.stringify(newTxs));
+            localStorage.setItem('inventory-data', JSON.stringify(newTxs)); // Correct Key
             setAllTransactions(newTxs);
         }
         setAdjustTarget(null);
@@ -127,7 +141,7 @@ export default function InventoryTable() {
     return (
         <div className="pb-32 p-2 bg-gray-50 min-h-screen">
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 ml-2 mr-2">
-                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v18.0)</h1>
+                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v19.0)</h1>
                 <div className="flex items-center gap-2 bg-white p-2 rounded shadow-sm border border-gray-200">
                     <Calendar size={18} className="text-blue-600" />
                     <span className="text-xs font-bold text-gray-500">表示月:</span>
@@ -156,7 +170,7 @@ export default function InventoryTable() {
                             {isOpen && (
                                 <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-white">
                                     {items.map(product => {
-                                        const { stock: currentStock, latestLot } = getStockContext(product.id);
+                                        const { stock: currentStock, latestLot } = getStockContext(product);
                                         const rp = product.reorderPoint !== '-' ? parseInt(product.reorderPoint) : 0;
                                         const isLowStock = rp > 0 && currentStock <= rp;
                                         const isCalendarOpen = expandedProducts.has(product.id);
@@ -239,43 +253,31 @@ export default function InventoryTable() {
                                                                 <tbody>
                                                                     {(() => {
                                                                         // -----------------------------------------------------------------
-                                                                        // STRICT V18.0: LOOSE (GABAGABA) MATCHING
+                                                                        // STRICT V19.0: NAME-BASED MATCHING + CORRECT DATA SOURCE
                                                                         // -----------------------------------------------------------------
                                                                         let m = viewMonth;
                                                                         let y = viewYear;
                                                                         let daysInMonth = new Date(y, m, 0).getDate();
 
-                                                                        // START OF MONTH Comparison Key
-                                                                        // Construct "YYYYMM01" number key? No, easier to compare actual dates via Date obj or similar.
-                                                                        // But user asked for "match(/\d+/g)..." logic.
-                                                                        // Let's stick to numerical comparison for "Before" logic:
-                                                                        // "2026218" is not a good comparable number (20261118 > 2026218? depending on digit count).
-                                                                        // So for "Before", we should parse Y, M, D.
+                                                                        // START OF MONTH Comparison Key (Numeric)
+                                                                        // We use "Before Date" logic with Date objects for stock calculation
+                                                                        const startOfMonth = new Date(y, m - 1, 1);
 
-                                                                        // Filter by ID Match only first
-                                                                        const pTxs = allTransactions.filter(t => isIdMatch(t.productId, product.id));
+                                                                        // Filter product txs using ID OR NAME
+                                                                        const pTxs = allTransactions.filter(t => isProductMatch(t, product));
 
                                                                         // Calculate Start Stock
-                                                                        const startOfMonth = new Date(y, m - 1, 1);
                                                                         let renderStock = 0;
-
                                                                         pTxs.forEach(t => {
-                                                                            // Parse date for "Before" logic
                                                                             if (!t.date) return;
-                                                                            // Try standard parse first
                                                                             let d = new Date(t.date);
-                                                                            if (isNaN(d.getTime())) {
-                                                                                // Fallback: try to parse the "loose" string manually? 
-                                                                                // Assume format matches one of the knowns if Date fails (unlikely if they are inputs).
-                                                                                return;
-                                                                            }
+                                                                            if (isNaN(d.getTime())) return;
 
-                                                                            // Compare
                                                                             if (d < startOfMonth) {
                                                                                 const qty = parseInt(t.quantity, 10) || 0;
-                                                                                const type = (t.type || '').toLowerCase();
-                                                                                if (type === 'in' || type === 'adjust') renderStock += qty;
-                                                                                else if (type === 'out' || type === '出庫入力' || type === 'sample') renderStock -= qty;
+                                                                                const type = (t.type || '').toUpperCase();
+                                                                                if (type === 'IN' || type === 'ADJUST') renderStock += qty;
+                                                                                else if (type === 'OUT' || type === 'SAMPLE' || type === '出庫入力') renderStock -= qty;
                                                                             }
                                                                         });
 
@@ -284,11 +286,10 @@ export default function InventoryTable() {
                                                                             const cMonth = m;
                                                                             const cDay = d;
 
-                                                                            // "GABAGABA" Date Key for this cell
-                                                                            // [2026, 2, 18] -> "2026218"
+                                                                            // "GABAGABA" Date Key
                                                                             const cDateKey = [cYear, cMonth, cDay].map(Number).join('');
 
-                                                                            // 2. Filter Transactions by Loose Date Key
+                                                                            // 2. Filter Transactions
                                                                             const dayTxs = pTxs.filter(t => {
                                                                                 const tDateKey = getDateKey(t.date);
                                                                                 return tDateKey === cDateKey;
@@ -300,23 +301,25 @@ export default function InventoryTable() {
 
                                                                             dayTxs.forEach(t => {
                                                                                 const qty = Number(t.quantity) || 0;
-                                                                                const type = (t.type || '').toLowerCase();
+                                                                                const type = (t.type || '').toUpperCase();
 
-                                                                                if (type === 'in' || type === 'adjust') {
-                                                                                    if (type === 'adjust') {
+                                                                                // Handle various TYPE strings from storage.js/InputDataList
+                                                                                // InputDataList uses 'IN' or 'OUT', storage.js saves 'IN'/'OUT'
+                                                                                if (type === 'IN' || type === 'ADJUST') {
+                                                                                    if (type === 'ADJUST') {
                                                                                         if (qty >= 0) dIn += qty;
                                                                                         else dOut += Math.abs(qty);
                                                                                     } else {
                                                                                         dIn += qty;
                                                                                     }
-                                                                                } else if (type === 'out' || type === '出庫入力') {
+                                                                                } else if (type === 'OUT' || type === '出庫入力') {
                                                                                     if (t.isSample) {
                                                                                         dSample += qty;
                                                                                     } else {
                                                                                         dOut += qty;
                                                                                         if (t.bossId) bossDetails.push(t.bossId);
                                                                                     }
-                                                                                } else if (type === 'sample') {
+                                                                                } else if (type === 'SAMPLE') {
                                                                                     dSample += qty;
                                                                                 }
                                                                             });
@@ -353,7 +356,7 @@ export default function InventoryTable() {
                                                                                     >
                                                                                         {dOut > 0 ? dOut : ''}
 
-                                                                                        {/* Black Triangle for >= 10 */}
+                                                                                        {/* Black Triangle for >= 10 (STRICT V19.0: Always render if >=10) */}
                                                                                         {dOut >= 10 && (
                                                                                             <div
                                                                                                 className="absolute top-0 right-0 pointer-events-none"
