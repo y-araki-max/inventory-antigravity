@@ -159,8 +159,38 @@ export const useInventory = () => {
 
             // Filter items for strictly this day
             const dayItems = activity.filter(item => {
-                // Assuming item.date is ISO string or YYYY-MM-DD
-                return item.date.startsWith(dateStr) &&
+                if (!item.date) return false;
+
+                // Strict v13.1: Robust Date Matching
+                // Handle ISO strings (YYYY-MM-DDTHH...) and simple strings (YYYY-MM-DD)
+                // We want to match in LOCAL time context effectively, or strict string prefix.
+                // Assuming data is saved as ISO string from new Date().toISOString() OR YYYY-MM-DD.
+
+                let itemDateStr = item.date;
+                if (item.date.includes('T')) {
+                    // It's likely ISO. 
+                    // WARNING: toISOString() is UTC. If user is in Japan (JST), 
+                    // 2026-02-18 00:00:00 JST -> 2026-02-17 15:00:00 UTC.
+                    // If we just split('T')[0], we get the UTC date.
+                    // Ideally we should use the same timezone logic as input.
+                    // For now, let's assume the date stored is the "Business Date" meant by the user.
+                    // If the app saves as ISO UTC, we might have a timezone offset issue.
+                    // However, `startsWith` works if the input saved "YYYY-MM-DD" part correctly.
+
+                    // Let's try to match strict YYYY-MM-DD part first.
+                    itemDateStr = item.date.split('T')[0];
+                }
+
+                // Normalize itemDateStr to ensure YYYY-MM-DD (e.g. 2026-2-1 -> 2026-02-01)
+                const parts = itemDateStr.split('-');
+                if (parts.length === 3) {
+                    const y = parts[0];
+                    const m = parts[1].padStart(2, '0');
+                    const d = parts[2].padStart(2, '0');
+                    itemDateStr = `${y}-${m}-${d}`;
+                }
+
+                return itemDateStr === dateStr &&
                     ((item.productId == pid) || (normalizeTerm(item.name) === product.name));
             });
 
