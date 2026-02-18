@@ -10,7 +10,8 @@ export default function InventoryTable() {
         updateMemo,
         adjustStock,
         viewYear, setViewYear,
-        viewMonth, setViewMonth
+        viewMonth, setViewMonth,
+        transactions // Strict v13.3: for Inline Calc
     } = useInventory();
 
     const [openCategories, setOpenCategories] = useState({});
