@@ -28,7 +28,7 @@ export default function InventoryTable() {
         const txRaw = localStorage.getItem('inventory_history');
         const txData = JSON.parse(txRaw || '[]');
 
-        console.log("=== STRICT V26.0 (Real Fix) DATA LOAD ===");
+        console.log("=== STRICT V27.0 (FIFO) DATA LOAD ===");
         console.log("Key: inventory_history");
         console.log("Count:", txData.length);
 
@@ -42,7 +42,6 @@ export default function InventoryTable() {
     // HELPERS
     // -------------------------------------------------------------------------
 
-    // STRICT V23.0 Matcher
     const isProductMatch = (t, product) => {
         if (t.productId && String(t.productId) == String(product.id)) return true;
         if (t.name && t.name === product.name) return true;
@@ -50,10 +49,7 @@ export default function InventoryTable() {
         return false;
     };
 
-    // STRICT V26.0 (Real Fix): Final Lot Extraction Logic
-    // User identified "lotNo" as the correct key.
     const getLotString = (t) => {
-        // Priority: lotNo > lot > memo > lotNumber
         if (t.lotNo) return t.lotNo;
         if (t.lot) return t.lot;
         if (t.memo) return t.memo;
@@ -61,12 +57,13 @@ export default function InventoryTable() {
         return '-';
     };
 
-    // STRICT V26.0: Latest Lot Extraction
-    const getStockContext = (product) => {
-        let stock = 0;
-        let latestLot = '-';
-        let latestInDate = '';
+    // STRICT V27.0: FIFO Active Lot Logic
+    const getActiveStockContext = (product) => {
+        let currentStock = 0;
+        let totalOut = 0;
+        const inboundTxs = [];
 
+        // 1. Classify Transactions
         allTransactions.forEach(t => {
             if (!isProductMatch(t, product)) return;
 
@@ -75,25 +72,70 @@ export default function InventoryTable() {
 
             if (type === 'IN' || type === 'ADJUST') {
                 if (type === 'ADJUST') {
-                    stock += qty;
-                } else {
-                    stock += qty;
-                    // STRICT V26.0: Check for Latest Lot (IN)
-                    if (type === 'IN') {
-                        // Find the NEWEST date
-                        const tDate = t.date || '';
-                        if (tDate >= latestInDate) {
-                            latestInDate = tDate;
-                            latestLot = getLotString(t); // Uses lotNo
-                        }
+                    if (qty >= 0) {
+                        currentStock += qty;
+                        // Treat positive adjust as IN?
+                        // Usually ADJUST is correction. Let's exclude from FIFO queue to keep it simple, 
+                        // or treat as "Unknown Lot" IN.
+                        // Prompt focused on "IN" type. Let's process "IN" for Lot Queue.
+                        if (qty > 0) inboundTxs.push({ ...t, qty }); // Add to queue if pos?
+                    } else {
+                        currentStock -= Math.abs(qty);
+                        totalOut += Math.abs(qty);
                     }
+                } else {
+                    currentStock += qty;
+                    // Strict IN
+                    inboundTxs.push({ ...t, qty });
                 }
             } else if (type === 'OUT' || type === 'SAMPLE' || type === '出庫入力') {
-                stock -= qty;
+                const absQty = Math.abs(qty);
+                currentStock -= absQty;
+                totalOut += absQty;
             }
         });
 
-        return { stock, latestLot };
+        // 2. Sort Inbound (Rule: Oldest Date/Branch First)
+        // "2028.09" < "2028.10", "2028.09-A" < "2028.09-B"
+        // Ignore suffix like "/HPA"
+        inboundTxs.sort((a, b) => {
+            const lotA = getLotString(a);
+            const lotB = getLotString(b);
+
+            // Clean suffix
+            const cleanA = lotA.split('/')[0];
+            const cleanB = lotB.split('/')[0];
+
+            // String Compare
+            if (cleanA < cleanB) return -1;
+            if (cleanA > cleanB) return 1;
+
+            // Fallback to Input Date if Lot strings are identical
+            if (a.date < b.date) return -1;
+            if (a.date > b.date) return 1;
+            return 0;
+        });
+
+        // 3. FIFO Consumption
+        let activeLot = '-';
+
+        // Iterate through sorted inbound lots
+        for (const tx of inboundTxs) {
+            if (totalOut >= tx.qty) {
+                // This lot is fully consumed
+                totalOut -= tx.qty;
+            } else {
+                // This lot has remaining stock
+                activeLot = getLotString(tx);
+                break; // Found the active lot
+            }
+        }
+
+        // If we ran out of lots but still have stock (from ADJUST?), activeLot stays '-' or last?
+        // If currentStock > 0 and no lot found, maybe we should show "Unknown" or just "-".
+        // Use the calculated 'currentStock' for display.
+
+        return { stock: currentStock, activeLot };
     };
 
     const toggleCategory = (cat) => {
@@ -147,7 +189,7 @@ export default function InventoryTable() {
     return (
         <div className="pb-32 p-2 bg-gray-50 min-h-screen">
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 ml-2 mr-2">
-                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v26.0 Fix)</h1>
+                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v27.0 FIFO)</h1>
                 <div className="flex items-center gap-2 bg-white p-2 rounded shadow-sm border border-gray-200">
                     <Calendar size={18} className="text-blue-600" />
                     <span className="text-xs font-bold text-gray-500">表示月:</span>
@@ -176,7 +218,9 @@ export default function InventoryTable() {
                             {isOpen && (
                                 <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-white">
                                     {items.map(product => {
-                                        const { stock: currentStock, latestLot } = getStockContext(product);
+                                        // STRICT V27.0: Use FIFO Context
+                                        const { stock: currentStock, activeLot } = getActiveStockContext(product);
+
                                         const rp = product.reorderPoint !== '-' ? parseInt(product.reorderPoint) : 0;
                                         const isLowStock = rp > 0 && currentStock <= rp;
                                         const isCalendarOpen = expandedProducts.has(product.id);
@@ -203,7 +247,7 @@ export default function InventoryTable() {
                                                 <div className="grid grid-cols-3 gap-2 text-xs mb-3 bg-gray-50 p-2 rounded border border-gray-100">
                                                     <div>
                                                         <span className="text-gray-400 block text-[10px]">最新ロット</span>
-                                                        <span className="font-bold text-gray-700">{latestLot}</span>
+                                                        <span className="font-bold text-gray-700">{activeLot}</span>
                                                     </div>
                                                     <div>
                                                         <span className="text-gray-400 block text-[10px]">発注点</span>
@@ -259,7 +303,7 @@ export default function InventoryTable() {
                                                                 <tbody>
                                                                     {(() => {
                                                                         // -----------------------------------------------------------------
-                                                                        // STRICT V26.0 (Real Fix): Final Integration
+                                                                        // STRICT V27.0: Active Lot + Visuals
                                                                         // -----------------------------------------------------------------
                                                                         let m = viewMonth;
                                                                         let y = viewYear;
@@ -302,13 +346,14 @@ export default function InventoryTable() {
                                                                                 const qty = Number(t.quantity) || 0;
                                                                                 const type = (t.type || '').toUpperCase();
 
+                                                                                // STRICT V26.0 (Real Fix): Uses lotNo
                                                                                 if (type === 'IN' || type === 'ADJUST') {
                                                                                     if (type === 'ADJUST') {
                                                                                         if (qty >= 0) dIn += qty;
                                                                                         else dOut += Math.abs(qty);
                                                                                     } else {
                                                                                         dIn += qty;
-                                                                                        // STRICT V26.0 (Real Fix): Uses lotNo
+                                                                                        // Gather lot details for popup
                                                                                         const lotStr = getLotString(t);
                                                                                         inboundDetails.push(`${lotStr} (${qty})`);
                                                                                     }
