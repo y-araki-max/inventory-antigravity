@@ -199,24 +199,42 @@ export default function InventoryTable() {
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
-                                                                    {item.dailyHistory && item.dailyHistory.map((day, idx) => {
-                                                                        const dayNum = day.dateObj.getDay();
-                                                                        const isSat = dayNum === 6;
-                                                                        const isSun = dayNum === 0;
-                                                                        const rowClass = isSat ? 'bg-blue-50' : isSun ? 'bg-red-50' : (idx % 2 === 0 ? 'bg-white' : 'bg-gray-50');
+                                                                    {(() => {
+                                                                        // Strict v11.1: Force Render Rows based on View Month
+                                                                        const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
+                                                                        return Array.from({ length: daysInMonth }, (_, i) => i + 1).map((d) => {
+                                                                            const dateObj = new Date(viewYear, viewMonth - 1, d);
+                                                                            const dayNum = dateObj.getDay();
+                                                                            const isSat = dayNum === 6;
+                                                                            const isSun = dayNum === 0;
+                                                                            const rowClass = isSat ? 'bg-blue-50' : isSun ? 'bg-red-50' : (d % 2 === 0 ? 'bg-white' : 'bg-gray-50');
+                                                                            const dateStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
-                                                                        return (
-                                                                            <tr key={day.date} className={`${rowClass} border-b border-gray-100 last:border-0`}>
-                                                                                <td className={`p-1 ${isSat ? 'text-blue-600' : isSun ? 'text-red-600' : 'text-gray-700'} font-medium`}>
-                                                                                    {day.dateObj.getDate()}
-                                                                                </td>
-                                                                                <td className="p-1 border-l border-gray-100 text-blue-600">{day.in > 0 ? day.in : ''}</td>
-                                                                                <td className="p-1 border-l border-gray-100 text-gray-600">{day.out > 0 ? day.out : ''}</td>
-                                                                                <td className="p-1 border-l border-gray-100 text-green-600">{day.sample > 0 ? day.sample : ''}</td>
-                                                                                <td className="p-1 border-l border-gray-100 font-bold text-gray-800">{day.stock}</td>
-                                                                            </tr>
-                                                                        );
-                                                                    })}
+                                                                            // Robust Lookup
+                                                                            const dayData = item.dailyHistory ? item.dailyHistory.find(h => h.date === dateStr) : null;
+
+                                                                            return (
+                                                                                <tr key={d} className={`${rowClass} border-b border-gray-100 last:border-0`}>
+                                                                                    {/* Strict v11.1: Weekend Colors */}
+                                                                                    <td className={`p-1 font-bold ${isSat ? 'text-blue-600' : isSun ? 'text-red-500' : 'text-gray-700'}`}>
+                                                                                        {d}
+                                                                                    </td>
+                                                                                    <td className="p-1 border-l border-gray-100 text-blue-600">
+                                                                                        {dayData && dayData.in > 0 ? dayData.in : ''}
+                                                                                    </td>
+                                                                                    <td className="p-1 border-l border-gray-100 text-gray-600">
+                                                                                        {dayData && dayData.out > 0 ? dayData.out : ''}
+                                                                                    </td>
+                                                                                    <td className="p-1 border-l border-gray-100 text-green-600">
+                                                                                        {dayData && dayData.sample > 0 ? dayData.sample : ''}
+                                                                                    </td>
+                                                                                    <td className="p-1 border-l border-gray-100 font-bold text-gray-800">
+                                                                                        {dayData ? dayData.stock : '-'}
+                                                                                    </td>
+                                                                                </tr>
+                                                                            );
+                                                                        });
+                                                                    })()}
                                                                 </tbody>
                                                             </table>
                                                         </div>
