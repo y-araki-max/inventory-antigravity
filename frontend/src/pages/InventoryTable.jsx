@@ -74,11 +74,7 @@ export default function InventoryTable() {
                 if (type === 'ADJUST') {
                     if (qty >= 0) {
                         currentStock += qty;
-                        // Treat positive adjust as IN?
-                        // Usually ADJUST is correction. Let's exclude from FIFO queue to keep it simple, 
-                        // or treat as "Unknown Lot" IN.
-                        // Prompt focused on "IN" type. Let's process "IN" for Lot Queue.
-                        if (qty > 0) inboundTxs.push({ ...t, qty }); // Add to queue if pos?
+                        if (qty > 0) inboundTxs.push({ ...t, qty });
                     } else {
                         currentStock -= Math.abs(qty);
                         totalOut += Math.abs(qty);
@@ -96,8 +92,6 @@ export default function InventoryTable() {
         });
 
         // 2. Sort Inbound (Rule: Oldest Date/Branch First)
-        // "2028.09" < "2028.10", "2028.09-A" < "2028.09-B"
-        // Ignore suffix like "/HPA"
         inboundTxs.sort((a, b) => {
             const lotA = getLotString(a);
             const lotB = getLotString(b);
@@ -119,21 +113,14 @@ export default function InventoryTable() {
         // 3. FIFO Consumption
         let activeLot = '-';
 
-        // Iterate through sorted inbound lots
         for (const tx of inboundTxs) {
             if (totalOut >= tx.qty) {
-                // This lot is fully consumed
                 totalOut -= tx.qty;
             } else {
-                // This lot has remaining stock
                 activeLot = getLotString(tx);
-                break; // Found the active lot
+                break;
             }
         }
-
-        // If we ran out of lots but still have stock (from ADJUST?), activeLot stays '-' or last?
-        // If currentStock > 0 and no lot found, maybe we should show "Unknown" or just "-".
-        // Use the calculated 'currentStock' for display.
 
         return { stock: currentStock, activeLot };
     };
@@ -189,7 +176,7 @@ export default function InventoryTable() {
     return (
         <div className="pb-32 p-2 bg-gray-50 min-h-screen">
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 ml-2 mr-2">
-                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v27.0 FIFO)</h1>
+                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v29.0)</h1>
                 <div className="flex items-center gap-2 bg-white p-2 rounded shadow-sm border border-gray-200">
                     <Calendar size={18} className="text-blue-600" />
                     <span className="text-xs font-bold text-gray-500">表示月:</span>
@@ -221,13 +208,16 @@ export default function InventoryTable() {
                                         // STRICT V27.0: Use FIFO Context
                                         const { stock: currentStock, activeLot } = getActiveStockContext(product);
 
-                                        const rp = product.reorderPoint !== '-' ? parseInt(product.reorderPoint) : 0;
-                                        const isLowStock = rp > 0 && currentStock <= rp;
+                                        // STRICT v29.0: Removed Low Stock Warning Colors
+                                        // const rp = product.reorderPoint !== '-' ? parseInt(product.reorderPoint) : 0;
+                                        // const isLowStock = rp > 0 && currentStock <= rp;
+
                                         const isCalendarOpen = expandedProducts.has(product.id);
                                         const memo = memos[product.id] || '';
 
                                         return (
-                                            <div key={product.id} className={`p-4 rounded-lg border-2 transition-all ${isLowStock ? 'border-red-100 bg-red-50/50' : 'border-gray-100 bg-white'}`}>
+                                            // Removed border-red-100 bg-red-50/50 logic
+                                            <div key={product.id} className="p-4 rounded-lg border-2 transition-all border-gray-100 bg-white">
                                                 <div className="flex justify-between items-start mb-3">
                                                     <div>
                                                         <button onClick={() => toggleProductCalendar(product.id)} className="text-left font-bold text-gray-800 text-lg leading-tight hover:text-blue-600 hover:underline decoration-2 underline-offset-2 flex items-center gap-1">
@@ -237,7 +227,8 @@ export default function InventoryTable() {
                                                         <p className="text-[10px] text-gray-400 mt-1">{product.fullName}</p>
                                                     </div>
                                                     <div className="text-right">
-                                                        <div className={`text-2xl font-bold ${isLowStock ? 'text-red-600' : 'text-blue-600'}`}>
+                                                        {/* Removed text-red-600 logic, always use blue or default */}
+                                                        <div className="text-2xl font-bold text-blue-600">
                                                             {currentStock.toLocaleString()}
                                                         </div>
                                                         <div className="text-[10px] text-gray-400">現在在庫</div>
@@ -251,7 +242,8 @@ export default function InventoryTable() {
                                                     </div>
                                                     <div>
                                                         <span className="text-gray-400 block text-[10px]">発注点</span>
-                                                        <span className={`font-bold ${isLowStock ? 'text-red-500' : 'text-gray-700'}`}>
+                                                        {/* Removed text-red-500 */}
+                                                        <span className="font-bold text-gray-700">
                                                             {product.reorderPoint || '-'}
                                                         </span>
                                                     </div>
@@ -353,7 +345,6 @@ export default function InventoryTable() {
                                                                                         else dOut += Math.abs(qty);
                                                                                     } else {
                                                                                         dIn += qty;
-                                                                                        // Gather lot details for popup
                                                                                         const lotStr = getLotString(t);
                                                                                         inboundDetails.push(`${lotStr} (${qty})`);
                                                                                     }
