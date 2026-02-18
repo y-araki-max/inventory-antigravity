@@ -54,7 +54,7 @@ export default function InventoryTable() {
         <div className="pb-32 p-2 bg-gray-50 min-h-screen">
             {/* Header with Month Selector */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 ml-2 mr-2">
-                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v9.0)</h1>
+                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v14.0)</h1>
 
                 <div className="flex items-center gap-2 bg-white p-2 rounded shadow-sm border border-gray-200">
                     <Calendar size={18} className="text-blue-600" />
@@ -212,88 +212,138 @@ export default function InventoryTable() {
                                                                 </thead>
                                                                 <tbody>
                                                                     {(() => {
-                                                                        // Strict v12.1: Fail-Safe Calendar Logic
-                                                                        let y = Number(viewYear);
-                                                                        let m = Number(viewMonth);
+                                                                        // Strict v14.0: INLINE CALCULATION ENGINE (No External Calls)
 
-                                                                        // Safety Defaults
-                                                                        if (!y || isNaN(y)) y = 2026;
-                                                                        if (!m || isNaN(m)) m = 1;
-
-                                                                        // Get Last Day of Month
-                                                                        // new Date(y, m, 0) -> 0th day of month (m+1) -> Last day of month m.
+                                                                        // 1. Setup Dates
+                                                                        let y = Number(viewYear) || 2026;
+                                                                        let m = Number(viewMonth) || 1;
                                                                         let daysInMonth = new Date(y, m, 0).getDate();
+                                                                        if (isNaN(daysInMonth)) daysInMonth = 31;
 
-                                                                        // Absolute Fail-Safe: If calculation fails, default to 31 to show *something* rather than error
-                                                                        if (!daysInMonth || isNaN(daysInMonth)) {
-                                                                            console.warn('[Strict v12.1] Date Logic Fallback triggered', y, m);
-                                                                            daysInMonth = 31;
-                                                                        }
+                                                                        // 2. Initial Stock Setup
+                                                                        // Use useInventory's calculated startOfMonthStock if available, else 0.
+                                                                        let currentStock = (typeof item.startOfMonthStock === 'number') ? item.startOfMonthStock : 0;
 
-                                                                        console.log(`[Calendar v12.1] Year:${y} Month:${m} Days:${daysInMonth}`);
+                                                                        // 3. Transactions Filter (Optimization: Filter by Product ID once)
+                                                                        const safeTxs = Array.isArray(transactions) ? transactions : [];
+                                                                        const productTxs = safeTxs.filter(t => t.productId == item.id);
 
+                                                                        // 4. Render Days
                                                                         return Array.from({ length: daysInMonth }, (_, i) => i + 1).map((d) => {
-                                                                            // Day of Week
-                                                                            // m is 1-12. Date month index is m-1.
-                                                                            const dateObj = new Date(y, m - 1, d);
-                                                                            const dayOfWeek = dateObj.getDay(); // 0:Sun, 6:Sat
+                                                                            // Date String: YYYY-MM-DD
+                                                                            const mStr = m < 10 ? '0' + m : m;
+                                                                            const dStr = d < 10 ? '0' + d : d;
+                                                                            const dayKey = `${y}-${mStr}-${dStr}`;
 
+                                                                            // Styling
+                                                                            const dateObj = new Date(y, m - 1, d);
+                                                                            const dayOfWeek = dateObj.getDay();
                                                                             const isSat = dayOfWeek === 6;
                                                                             const isSun = dayOfWeek === 0;
-
-                                                                            // Strict Styling
                                                                             const rowClass = isSat ? 'bg-blue-50' : isSun ? 'bg-red-50' : (d % 2 === 0 ? 'bg-white' : 'bg-gray-50');
-                                                                            // Use inline styles or strict classes for text color
                                                                             const textClass = isSat ? 'text-blue-600 font-bold' : isSun ? 'text-red-600 font-bold' : 'text-gray-700 font-bold';
 
-                                                                            // Data Lookup String: YYYY-MM-DD
-                                                                            const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                                                                            const dayData = item.dailyHistory ? item.dailyHistory.find(h => h.date === dateStr) : null;
+                                                                            // 5. INLINE DATA CALCULATION
+                                                                            // Filter transactions for this specific day
+                                                                            const dayTxs = productTxs.filter(t => {
+                                                                                if (!t.date) return false;
+                                                                                const tDate = t.date.includes('T') ? t.date.split('T')[0] : t.date;
+                                                                                return tDate === dayKey;
+                                                                            });
+
+                                                                            // Calculate Sums
+                                                                            let dailyIn = 0;
+                                                                            let dailyOut = 0;
+                                                                            let dailySample = 0;
+                                                                            let bossDetails = [];
+
+                                                                            dayTxs.forEach(t => {
+                                                                                const qty = parseInt(t.quantity || 0);
+                                                                                const type = t.type ? t.type.toUpperCase() : '';
+
+                                                                                if (type === 'IN' || type === 'ADJUST') {
+                                                                                    if (type === 'ADJUST') {
+                                                                                        if (qty >= 0) dailyIn += qty;
+                                                                                        else dailyOut += Math.abs(qty);
+                                                                                    } else {
+                                                                                        dailyIn += qty;
+                                                                                    }
+                                                                                } else if (type === 'OUT' || type === '出庫入力') {
+                                                                                    if (t.isSample) {
+                                                                                        dailySample += qty;
+                                                                                    } else {
+                                                                                        dailyOut += qty;
+                                                                                        // Boss ID Collection
+                                                                                        bossDetails.push({
+                                                                                            bossId: t.bossId || '不明',
+                                                                                            quantity: qty
+                                                                                        });
+                                                                                    }
+                                                                                }
+                                                                            });
+
+                                                                            // 6. Update Running Stock
+                                                                            currentStock = currentStock + dailyIn - dailyOut - dailySample;
 
                                                                             return (
-                                                                                <tr key={d} className={`${rowClass} border-b border-gray-100 last:border-0`}>
-                                                                                    <td className={`p-1 text-center ${textClass}`}>
-                                                                                        {d}
-                                                                                    </td>
-                                                                                    <td className="p-1 border-l border-gray-100 text-blue-600">
-                                                                                        {dayData && dayData.in > 0 ? dayData.in : ''}
-                                                                                    </td>
-                                                                                    {/* Strict v13: Large Purchase Indicator & Data Sync */}
-                                                                                    <td className="p-1 border-l border-gray-100 text-gray-600 relative group">
-                                                                                        {dayData && dayData.out > 0 ? dayData.out : ''}
-                                                                                        {dayData && (dayData.out >= 10) && (
-                                                                                            <>
-                                                                                                {/* Triangle Marker */}
-                                                                                                <span className="absolute top-0 right-0 w-0 h-0 border-t-[6px] border-r-[6px] border-t-red-500 border-r-transparent transform rotate-0"></span>
+                                                                                <tr key={`${dayKey}-${item.id}`} className={`${rowClass} border-b border-gray-100 last:border-0`}>
+                                                                                    <td className={`p-1 text-center ${textClass}`}>{d}</td>
 
+                                                                                    {/* IN */}
+                                                                                    <td className="p-1 border-l border-gray-100 text-blue-600 font-medium">
+                                                                                        {dailyIn > 0 ? dailyIn : ''}
+                                                                                    </td>
+
+                                                                                    {/* OUT & BOSS INDICATOR */}
+                                                                                    <td className="p-1 border-l border-gray-100 text-gray-600 relative group">
+                                                                                        {dailyOut > 0 ? dailyOut : ''}
+
+                                                                                        {/* Black Triangle for >= 10 */}
+                                                                                        {dailyOut >= 10 && (
+                                                                                            <>
+                                                                                                <div
+                                                                                                    className="absolute top-0 right-0 pointer-events-none"
+                                                                                                    style={{
+                                                                                                        width: 0,
+                                                                                                        height: 0,
+                                                                                                        borderStyle: 'solid',
+                                                                                                        borderWidth: '0 8px 8px 0',
+                                                                                                        borderColor: 'transparent #000000 transparent transparent'
+                                                                                                    }}
+                                                                                                />
                                                                                                 {/* Tooltip */}
-                                                                                                <div className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 p-2 bg-gray-900 text-white text-xs rounded shadow-lg z-50 whitespace-nowrap min-w-[120px]">
-                                                                                                    <div className="font-bold border-b border-gray-600 mb-1 pb-1 text-yellow-400">
-                                                                                                        合計: {dayData.out}個
+                                                                                                <div className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 z-50">
+                                                                                                    <div className="bg-gray-900 text-white text-xs rounded shadow-lg overflow-hidden min-w-[120px]">
+                                                                                                        <div className="bg-gray-800 p-1 border-b border-gray-700 text-center font-bold text-yellow-400">
+                                                                                                            出庫計: {dailyOut}
+                                                                                                        </div>
+                                                                                                        <div className="p-2">
+                                                                                                            {bossDetails.length > 0 ? (
+                                                                                                                bossDetails.map((bd, bi) => (
+                                                                                                                    <div key={bi} className="flex justify-between gap-3 text-[10px] whitespace-nowrap">
+                                                                                                                        <span>{bd.bossId}</span>
+                                                                                                                        <span className="font-bold">{bd.quantity}</span>
+                                                                                                                    </div>
+                                                                                                                ))
+                                                                                                            ) : (
+                                                                                                                <div className="text-gray-500 italic">...</div>
+                                                                                                            )}
+                                                                                                        </div>
                                                                                                     </div>
-                                                                                                    {dayData.outDetails && dayData.outDetails.length > 0 ? (
-                                                                                                        dayData.outDetails.map((d, dx) => (
-                                                                                                            <div key={dx} className="flex justify-between gap-4">
-                                                                                                                <span>{d.bossId || '指定なし'}</span>
-                                                                                                                <span className="font-bold">{d.quantity}</span>
-                                                                                                            </div>
-                                                                                                        ))
-                                                                                                    ) : (
-                                                                                                        <div className="text-gray-400 italic">詳細なし</div>
-                                                                                                    )}
+                                                                                                    <div className="w-2 h-2 bg-gray-900 transform rotate-45 mx-auto -mt-1"></div>
                                                                                                 </div>
                                                                                             </>
                                                                                         )}
                                                                                     </td>
+
+                                                                                    {/* SAMPLE */}
                                                                                     <td className="p-1 border-l border-gray-100 text-green-600">
-                                                                                        {dayData && dayData.sample > 0 ? dayData.sample : ''}
+                                                                                        {dailySample > 0 ? dailySample : ''}
                                                                                     </td>
-                                                                                    {/* Running Stock Calculation display */}
+
+                                                                                    {/* STOCK */}
                                                                                     <td className="p-1 border-l border-gray-100 font-bold text-gray-800">
-                                                                                        {dayData ? dayData.stock : '-'}
-                                                                                    </td>
-                                                                                    <td className="p-1 border-l border-gray-100 font-bold text-gray-800">
-                                                                                        {dayData ? dayData.stock : '-'}
+                                                                                        {currentStock}
                                                                                     </td>
                                                                                 </tr>
                                                                             );
