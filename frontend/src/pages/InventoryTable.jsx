@@ -200,36 +200,41 @@ export default function InventoryTable() {
                                                                 </thead>
                                                                 <tbody>
                                                                     {(() => {
-                                                                        // Strict v12: Standard Date Logic (2026+ Compatible)
-                                                                        const y = Number(viewYear);
-                                                                        const m = Number(viewMonth);
+                                                                        // Strict v12.1: Fail-Safe Calendar Logic
+                                                                        let y = Number(viewYear);
+                                                                        let m = Number(viewMonth);
 
-                                                                        // Get Last Day of Month: new Date(year, month, 0)
-                                                                        // m is 1-12. Date month arg is 0-indexed.
-                                                                        // new Date(y, m, 0) -> Day 0 of month (m+1) = Last day of month m.
-                                                                        // Example: m=2 (Feb). new Date(y, 2, 0) -> March 0th -> Feb 28/29. Correct.
-                                                                        const daysInMonth = new Date(y, m, 0).getDate();
+                                                                        // Safety Defaults
+                                                                        if (!y || isNaN(y)) y = 2026;
+                                                                        if (!m || isNaN(m)) m = 1;
 
-                                                                        // Fallback if something goes wrong, but show log
+                                                                        // Get Last Day of Month
+                                                                        // new Date(y, m, 0) -> 0th day of month (m+1) -> Last day of month m.
+                                                                        let daysInMonth = new Date(y, m, 0).getDate();
+
+                                                                        // Absolute Fail-Safe: If calculation fails, default to 31 to show *something* rather than error
                                                                         if (!daysInMonth || isNaN(daysInMonth)) {
-                                                                            console.error('[Strict v12] Date Error', y, m);
-                                                                            return <tr><td colSpan="5">Date Error</td></tr>;
+                                                                            console.warn('[Strict v12.1] Date Logic Fallback triggered', y, m);
+                                                                            daysInMonth = 31;
                                                                         }
 
+                                                                        console.log(`[Calendar v12.1] Year:${y} Month:${m} Days:${daysInMonth}`);
+
                                                                         return Array.from({ length: daysInMonth }, (_, i) => i + 1).map((d) => {
-                                                                            // Day of Week: new Date(year, monthIndex, day)
-                                                                            // m is 1-12. monthIndex is m-1.
+                                                                            // Day of Week
+                                                                            // m is 1-12. Date month index is m-1.
                                                                             const dateObj = new Date(y, m - 1, d);
                                                                             const dayOfWeek = dateObj.getDay(); // 0:Sun, 6:Sat
 
                                                                             const isSat = dayOfWeek === 6;
                                                                             const isSun = dayOfWeek === 0;
 
-                                                                            // Styling
+                                                                            // Strict Styling
                                                                             const rowClass = isSat ? 'bg-blue-50' : isSun ? 'bg-red-50' : (d % 2 === 0 ? 'bg-white' : 'bg-gray-50');
+                                                                            // Use inline styles or strict classes for text color
                                                                             const textClass = isSat ? 'text-blue-600 font-bold' : isSun ? 'text-red-600 font-bold' : 'text-gray-700 font-bold';
 
-                                                                            // Data Lookup
+                                                                            // Data Lookup String: YYYY-MM-DD
                                                                             const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                                                                             const dayData = item.dailyHistory ? item.dailyHistory.find(h => h.date === dateStr) : null;
 
