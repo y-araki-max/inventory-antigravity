@@ -21,9 +21,10 @@ export default function InventoryTable() {
     const [adjustValue, setAdjustValue] = useState('');
 
     // -------------------------------------------------------------------------
-    // 1. DATA LOADING (Direct from LocalStorage)
+    // 1. DATA LOADING (Direct from LocalStorage - Mirrored from Success Page)
     // -------------------------------------------------------------------------
     useEffect(() => {
+        // "集計ページで成功しているロジック" = Direct LS Read via same key
         const txRaw = localStorage.getItem('inventory-transactions');
         const txData = JSON.parse(txRaw || '[]');
         setAllTransactions(txData);
@@ -39,9 +40,14 @@ export default function InventoryTable() {
         let stock = 0;
         let latestLot = '-';
 
-        const productTxs = allTransactions.filter(t => String(t.productId) === String(productId));
+        // STRICT ID MATCHING
+        const pIdStr = String(productId).trim();
 
-        productTxs.forEach(t => {
+        // One-pass calculation
+        allTransactions.forEach(t => {
+            // ID Check
+            if (String(t.productId).trim() !== pIdStr) return;
+
             const qty = parseInt(t.quantity, 10) || 0;
             const type = (t.type || '').toLowerCase();
 
@@ -110,7 +116,7 @@ export default function InventoryTable() {
     return (
         <div className="pb-32 p-2 bg-gray-50 min-h-screen">
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 ml-2 mr-2">
-                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v16.3)</h1>
+                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v17.0)</h1>
                 <div className="flex items-center gap-2 bg-white p-2 rounded shadow-sm border border-gray-200">
                     <Calendar size={18} className="text-blue-600" />
                     <span className="text-xs font-bold text-gray-500">表示月:</span>
@@ -222,64 +228,59 @@ export default function InventoryTable() {
                                                                 <tbody>
                                                                     {(() => {
                                                                         // -----------------------------------------------------------------
-                                                                        // STRICT V16.3: ABSOLUTE NUMERIC DATE MATCHING
+                                                                        // STRICT V17.0: MIRRORED SUCCESS LOGIC + STRICT ID MATCH
                                                                         // -----------------------------------------------------------------
                                                                         let m = viewMonth;
                                                                         let y = viewYear;
                                                                         let daysInMonth = new Date(y, m, 0).getDate();
 
-                                                                        // START OF MONTH for stock calculation base
-                                                                        // Use the numeric comparison for "Start of Month" calculation too
-                                                                        // Filter product txs once for performance
-                                                                        const pTxs = allTransactions.filter(t => String(t.productId) === String(product.id));
+                                                                        const pIdStr = String(product.id).trim(); // Strict ID
 
-                                                                        // Initial Stock (Before this month)
+                                                                        // 1. Initial Stock Prep (Before Month)
                                                                         let renderStock = 0;
 
-                                                                        // Helper to get [Y, M, D] from Transaction
+                                                                        // Helper to get [Y, M, D] safely
                                                                         const getTxDateParts = (t) => {
                                                                             if (!t.date) return null;
-                                                                            // 1. Remove Time part if ISO
                                                                             const datePart = t.date.split('T')[0];
-                                                                            // 2. Split by hyphen or slash
-                                                                            const parts = datePart.split(/[-/]/).map(p => parseInt(p, 10)); // Force int
+                                                                            const parts = datePart.split(/[-/]/).map(p => parseInt(p, 10));
                                                                             if (parts.length !== 3) return null;
-                                                                            return {
-                                                                                y: parts[0],
-                                                                                m: parts[1],
-                                                                                d: parts[2]
-                                                                            };
+                                                                            return { y: parts[0], m: parts[1], d: parts[2] };
                                                                         };
 
-                                                                        // Calculate initial stock (Txs before Current View Month)
-                                                                        pTxs.forEach(t => {
+                                                                        // Calculate start stock
+                                                                        allTransactions.forEach(t => {
+                                                                            // Strict ID
+                                                                            if (String(t.productId).trim() !== pIdStr) return;
+
                                                                             const d = getTxDateParts(t);
                                                                             if (!d) return;
 
-                                                                            // Compare: (d.y < y) OR (d.y == y AND d.m < m)
+                                                                            // Is Before?
                                                                             const isBefore = (d.y < y) || (d.y === y && d.m < m);
-
                                                                             if (isBefore) {
                                                                                 const qty = parseInt(t.quantity, 10) || 0;
                                                                                 const type = (t.type || '').toLowerCase();
                                                                                 if (type === 'in' || type === 'adjust') renderStock += qty;
-                                                                                else if (type === 'out' || type === '出庫入力' || type === 'outbound' || type === 'sample') renderStock -= qty;
+                                                                                else if (type === 'out' || type === '出庫入力' || type === 'sample') renderStock -= qty;
                                                                             }
                                                                         });
 
                                                                         return Array.from({ length: daysInMonth }, (_, i) => i + 1).map((d) => {
-                                                                            // Current Day Vars (Simple Numbers)
-                                                                            const currentYear = y;
-                                                                            const currentMonth = m;
-                                                                            const currentDay = d;
+                                                                            const cYear = y;
+                                                                            const cMonth = m;
+                                                                            const cDay = d;
 
-                                                                            // 2. Filter Transactions by Absolute Numeric Matching
-                                                                            const dayTxs = pTxs.filter(t => {
+                                                                            // 2. Filter Per Day (Strict ID + Numeric Date)
+                                                                            const dayTxs = allTransactions.filter(t => {
+                                                                                // ID Check
+                                                                                if (String(t.productId).trim() !== pIdStr) return false;
+
+                                                                                // Date Check
                                                                                 const td = getTxDateParts(t);
                                                                                 if (!td) return false;
 
-                                                                                // Strict Numeric Compare: 0-padding ignored
-                                                                                return td.y === currentYear && td.m === currentMonth && td.d === currentDay;
+                                                                                return td.y === cYear && td.m === cMonth && td.d === cDay;
                                                                             });
 
                                                                             // 3. Sum (Inline)
@@ -320,7 +321,7 @@ export default function InventoryTable() {
                                                                             const rowClass = isSat ? 'bg-blue-50' : isSun ? 'bg-red-50' : (d % 2 === 0 ? 'bg-white' : 'bg-gray-50');
                                                                             const textClass = isSat ? 'text-blue-600 font-bold' : isSun ? 'text-red-600 font-bold' : 'text-gray-700 font-bold';
 
-                                                                            // Alert Handler
+                                                                            // Alert
                                                                             const handleBossClick = () => {
                                                                                 alert(`【BOSS ID / お届け先】\n${bossDetails.length > 0 ? bossDetails.join('\n') : '詳細なし'}`);
                                                                             };
