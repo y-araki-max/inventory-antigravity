@@ -200,43 +200,42 @@ export default function InventoryTable() {
                                                                 </thead>
                                                                 <tbody>
                                                                     {(() => {
-                                                                        // Strict v11.3: Robust Date Calculation & Forced Render
+                                                                        // Strict v12: Standard Date Logic (2026+ Compatible)
                                                                         const y = Number(viewYear);
                                                                         const m = Number(viewMonth);
-                                                                        // new Date(year, monthIndex, day)
-                                                                        // If m is 2 (Feb), we want days in Feb.
-                                                                        // monthIndex for Date is 0-indexed (Jan=0, Feb=1).
-                                                                        // But using day=0 convention: new Date(y, m, 0) gives last day of month "m-1" (index).
-                                                                        // If m=2, new Date(y, 2, 0) -> Month Index 2 is March. Day 0 of March is Last day of Feb.
-                                                                        // So new Date(2026, 2, 0).getDate() returns 28. Correct.
 
+                                                                        // Get Last Day of Month: new Date(year, month, 0)
+                                                                        // m is 1-12. Date month arg is 0-indexed.
+                                                                        // new Date(y, m, 0) -> Day 0 of month (m+1) = Last day of month m.
+                                                                        // Example: m=2 (Feb). new Date(y, 2, 0) -> March 0th -> Feb 28/29. Correct.
                                                                         const daysInMonth = new Date(y, m, 0).getDate();
-                                                                        console.log(`[Calendar Debug v11.3] Year:${y} Month:${m} Days:${daysInMonth}`);
 
-                                                                        // Force loop even if daysInMonth is weird (fallback to 31 if NaN to verify layout?)
-                                                                        // But usually Number check is enough.
-                                                                        const safeDays = (daysInMonth && !isNaN(daysInMonth)) ? daysInMonth : 30; // Fallback to 30 just in case to show *something*
+                                                                        // Fallback if something goes wrong, but show log
+                                                                        if (!daysInMonth || isNaN(daysInMonth)) {
+                                                                            console.error('[Strict v12] Date Error', y, m);
+                                                                            return <tr><td colSpan="5">Date Error</td></tr>;
+                                                                        }
 
-                                                                        return Array.from({ length: safeDays }, (_, i) => i + 1).map((d) => {
-                                                                            // Construct date object for dow styling
-                                                                            // new Date(y, m-1, d) -> month param is 0-indexed.
-                                                                            // if m=2 (Feb), m-1=1. new Date(2026, 1, d). Correct.
+                                                                        return Array.from({ length: daysInMonth }, (_, i) => i + 1).map((d) => {
+                                                                            // Day of Week: new Date(year, monthIndex, day)
+                                                                            // m is 1-12. monthIndex is m-1.
                                                                             const dateObj = new Date(y, m - 1, d);
-                                                                            const dayNum = dateObj.getDay();
-                                                                            const isSat = dayNum === 6;
-                                                                            const isSun = dayNum === 0;
+                                                                            const dayOfWeek = dateObj.getDay(); // 0:Sun, 6:Sat
+
+                                                                            const isSat = dayOfWeek === 6;
+                                                                            const isSun = dayOfWeek === 0;
+
+                                                                            // Styling
                                                                             const rowClass = isSat ? 'bg-blue-50' : isSun ? 'bg-red-50' : (d % 2 === 0 ? 'bg-white' : 'bg-gray-50');
+                                                                            const textClass = isSat ? 'text-blue-600 font-bold' : isSun ? 'text-red-600 font-bold' : 'text-gray-700 font-bold';
 
-                                                                            // Date String for Lookup: YYYY-MM-DD
+                                                                            // Data Lookup
                                                                             const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-
-                                                                            // Robust Lookup
                                                                             const dayData = item.dailyHistory ? item.dailyHistory.find(h => h.date === dateStr) : null;
 
                                                                             return (
                                                                                 <tr key={d} className={`${rowClass} border-b border-gray-100 last:border-0`}>
-                                                                                    {/* Strict v11.3: Robust Weekend Colors */}
-                                                                                    <td className={`p-1 font-bold ${isSat ? 'text-blue-600' : isSun ? 'text-red-600' : 'text-gray-700'}`}>
+                                                                                    <td className={`p-1 text-center ${textClass}`}>
                                                                                         {d}
                                                                                     </td>
                                                                                     <td className="p-1 border-l border-gray-100 text-blue-600">
