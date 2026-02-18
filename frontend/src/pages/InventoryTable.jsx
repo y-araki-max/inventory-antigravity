@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from 'react';
-// REMOVED: import { useInventory } from '../hooks/useInventory';  <-- STRICT RULE
 import { CATEGORIES, PRODUCTS } from '../data';
 import { MapPin, Edit2, ChevronDown, ChevronUp, Calendar } from 'lucide-react';
 
 export default function InventoryTable() {
     // -------------------------------------------------------------------------
-    // STANDALONE STATE MANAGEMENT (No External Hooks)
+    // STANDALONE STATE MANAGEMENT
     // -------------------------------------------------------------------------
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth() + 1;
 
     const [viewYear, setViewYear] = useState(currentYear);
     const [viewMonth, setViewMonth] = useState(currentMonth);
-    const [allTransactions, setAllTransactions] = useState([]);
+    const [allTransactions, setAllTransactions] = useState([]); // Raw Data
     const [memos, setMemos] = useState({});
 
     // UI States
@@ -22,71 +21,60 @@ export default function InventoryTable() {
     const [adjustValue, setAdjustValue] = useState('');
 
     // -------------------------------------------------------------------------
-    // 1. DIRECT DATA FETCHING (Replumbing the heart)
+    // 1. DATA LOADING (Direct from LocalStorage)
     // -------------------------------------------------------------------------
     useEffect(() => {
-        // Load Transactions directly from LocalStorage
         const txRaw = localStorage.getItem('inventory-transactions');
         const txData = JSON.parse(txRaw || '[]');
         setAllTransactions(txData);
 
-        // Load Memos directly
         const memoRaw = localStorage.getItem('inventory-memos');
         setMemos(JSON.parse(memoRaw || '{}'));
-    }, [viewYear, viewMonth]); // Reload trigger (though LS is sync, this ensures refresh)
+    }, [viewYear, viewMonth]);
 
     // -------------------------------------------------------------------------
-    // HELPER: Inline Calculation
+    // HELPERS
     // -------------------------------------------------------------------------
-    const getStockBeforeMonth = (productId, year, month) => {
-        // Calculate stock up to the Start of the View Month (Day 1 00:00:00)
-        // Note: For simplicity in this standalone version, we assume Initial Stock = 0
-        // (Since we can't easily parse CSV here without utils, and user asked to cut dependencies)
-
+    const getStockContext = (productId) => {
+        // Calculate "Current Stock" (Total)
         let stock = 0;
-        const startOfMonth = new Date(year, month - 1, 1);
-        // Normalize comparison date string to YYYY-MM-DD for simple string compare if needed, 
-        // but Date object compare is safer for "Before".
+        let latestLot = '-';
 
-        allTransactions.forEach(t => {
-            if (String(t.productId) !== String(productId)) return;
+        // Use all transactions for total stock
+        // Also find latest LOT (from IN transactions)
+        const productTxs = allTransactions.filter(t => String(t.productId) === String(productId));
 
-            // Date parsing
-            // Handle YYYY/MM/DD vs YYYY-MM-DD
-            const tDateStr = (t.date || '').replace(/\//g, '-');
-            const tDate = new Date(tDateStr);
+        // Sort by date ascending to calc stock properly over time, 
+        // but for "Latest Lot" we want the last one.
+        // Let's just iterate once.
+        productTxs.forEach(t => {
+            const qty = parseInt(t.quantity, 10) || 0;
+            const type = (t.type || '').toLowerCase();
 
-            if (tDate < startOfMonth) {
-                const qty = parseInt(t.quantity, 10) || 0;
-                const type = (t.type || '').toLowerCase();
-
-                if (type === 'in' || type === 'adjust') {
-                    if (type === 'adjust') {
-                        if (qty >= 0) stock += qty;
-                        else stock += Math.abs(qty); // Adjust can be negative logic?
-                        // Wait, in previous logic: ADJUST positive adds, negative adds to OUT?
-                        // Previous: if (qty >= 0) In += qty else Out += abs(qty)
-                        // So Stock = In - Out.
-                        // If Qty=10 (In=10), Stock+=10.
-                        // If Qty=-5 (Out=5), Stock-=5.
-                        // So actually we can just add `qty` if we trust the sign?
-                        // But prev logic separated In/Out columns. 
-                        // For Stock Calculation:
-                        stock += qty;
-                    } else {
-                        stock += qty;
-                    }
-                } else if (type === 'out' || type === '出庫入力' || type === 'sample') {
-                    stock -= qty;
+            if (type === 'in' || type === 'adjust') {
+                if (type === 'adjust') {
+                    if (qty >= 0) stock += qty;
+                    else stock += Math.abs(qty); // Treating negative adjust as ADD if logic requires, 
+                    // but usually stock + qty (where qty is +/-).
+                    // Wait, previous logic was strictly separation.
+                    // User code in v16.1 prompt says: 
+                    // "dailyIn = ... sum(t.quantity)" 
+                    // Let's stick to simple: Stock += qty (signed).
+                    // If user input 4816 as 'in', it adds.
+                    stock += qty;
+                } else {
+                    stock += qty;
+                    // Update Latest Lot if present
+                    if (t.lot) latestLot = t.lot;
                 }
+            } else if (type === 'out' || type === '出庫入力' || type === 'sample') {
+                stock -= qty;
             }
         });
-        return stock;
+
+        return { stock, latestLot };
     };
 
-    // -------------------------------------------------------------------------
-    // HANDLERS
-    // -------------------------------------------------------------------------
     const toggleCategory = (cat) => {
         setOpenCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
     };
@@ -104,17 +92,14 @@ export default function InventoryTable() {
         if (!adjustTarget || adjustValue === '') return;
         const val = parseInt(adjustValue);
         if (!isNaN(val)) {
-            // Write to LocalStorage directly
             const record = {
                 id: crypto.randomUUID(),
                 productId: adjustTarget.id,
                 type: 'ADJUST',
-                quantity: val - adjustTarget.currentStock, // Delta
+                quantity: val - adjustTarget.currentStock,
                 date: new Date().toISOString(),
                 bossId: '在庫修正'
             };
-
-            // Optimistic Update
             const newTxs = [...allTransactions, record];
             localStorage.setItem('inventory-transactions', JSON.stringify(newTxs));
             setAllTransactions(newTxs);
@@ -129,7 +114,6 @@ export default function InventoryTable() {
         localStorage.setItem('inventory-memos', JSON.stringify(newMemos));
     };
 
-
     // -------------------------------------------------------------------------
     // RENDER
     // -------------------------------------------------------------------------
@@ -140,29 +124,16 @@ export default function InventoryTable() {
 
     return (
         <div className="pb-32 p-2 bg-gray-50 min-h-screen">
-            {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 ml-2 mr-2">
-                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v15.1)</h1>
+                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v16.1)</h1>
                 <div className="flex items-center gap-2 bg-white p-2 rounded shadow-sm border border-gray-200">
                     <Calendar size={18} className="text-blue-600" />
                     <span className="text-xs font-bold text-gray-500">表示月:</span>
-                    <select
-                        value={viewYear}
-                        onChange={(e) => setViewYear(Number(e.target.value))}
-                        className="font-bold text-gray-700 bg-transparent border-none focus:ring-0 cursor-pointer"
-                    >
-                        {Array.from({ length: 6 }, (_, i) => currentYear - 1 + i).map(y => (
-                            <option key={y} value={y}>{y}年</option>
-                        ))}
+                    <select value={viewYear} onChange={(e) => setViewYear(Number(e.target.value))} className="font-bold text-gray-700 bg-transparent border-none focus:ring-0 cursor-pointer">
+                        {Array.from({ length: 6 }, (_, i) => currentYear - 1 + i).map(y => <option key={y} value={y}>{y}年</option>)}
                     </select>
-                    <select
-                        value={viewMonth}
-                        onChange={(e) => setViewMonth(Number(e.target.value))}
-                        className="font-bold text-lg text-blue-600 bg-transparent border-none focus:ring-0 cursor-pointer"
-                    >
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
-                            <option key={m} value={m}>{m}月</option>
-                        ))}
+                    <select value={viewMonth} onChange={(e) => setViewMonth(Number(e.target.value))} className="font-bold text-lg text-blue-600 bg-transparent border-none focus:ring-0 cursor-pointer">
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => <option key={m} value={m}>{m}月</option>)}
                     </select>
                 </div>
             </div>
@@ -175,10 +146,7 @@ export default function InventoryTable() {
 
                     return (
                         <div key={category} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                            <div
-                                onClick={() => toggleCategory(category)}
-                                className="flex justify-between items-center p-4 bg-gray-100 cursor-pointer hover:bg-gray-200 transition-colors"
-                            >
+                            <div onClick={() => toggleCategory(category)} className="flex justify-between items-center p-4 bg-gray-100 cursor-pointer hover:bg-gray-200 transition-colors">
                                 <h2 className="font-bold text-lg text-gray-800">{category}</h2>
                                 <span className="bg-white px-3 py-1 rounded-full text-xs font-bold text-gray-500 shadow-sm">{items.length}</span>
                             </div>
@@ -186,18 +154,9 @@ export default function InventoryTable() {
                             {isOpen && (
                                 <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-white">
                                     {items.map(product => {
-                                        // Calculate Stock Context Locally
-                                        const startStock = getStockBeforeMonth(product.id, viewYear, viewMonth);
-                                        // Need current stock at END of view month for the card badge?
-                                        // Let's just calculate "Today's Stock" (Total) or View Month End?
-                                        // Usually "Current Stock" implies "Now". But "Month End Stock" loop logic will determine the final number.
-                                        // Let's rely on the Calendar loop to calculate the final number for display if possible, 
-                                        // but we need it for the header before the loop.
-                                        // Simply: Total Stock (Infinity) = Current Real Stock.
-                                        const totalStock = getStockBeforeMonth(product.id, 9999, 12); // All time
-
+                                        const { stock: currentStock, latestLot } = getStockContext(product.id);
                                         const rp = product.reorderPoint !== '-' ? parseInt(product.reorderPoint) : 0;
-                                        const isLowStock = rp > 0 && totalStock <= rp;
+                                        const isLowStock = rp > 0 && currentStock <= rp;
                                         const isCalendarOpen = expandedProducts.has(product.id);
                                         const memo = memos[product.id] || '';
 
@@ -205,10 +164,7 @@ export default function InventoryTable() {
                                             <div key={product.id} className={`p-4 rounded-lg border-2 transition-all ${isLowStock ? 'border-red-100 bg-red-50/50' : 'border-gray-100 bg-white'}`}>
                                                 <div className="flex justify-between items-start mb-3">
                                                     <div>
-                                                        <button
-                                                            onClick={() => toggleProductCalendar(product.id)}
-                                                            className="text-left font-bold text-gray-800 text-lg leading-tight hover:text-blue-600 hover:underline decoration-2 underline-offset-2 flex items-center gap-1"
-                                                        >
+                                                        <button onClick={() => toggleProductCalendar(product.id)} className="text-left font-bold text-gray-800 text-lg leading-tight hover:text-blue-600 hover:underline decoration-2 underline-offset-2 flex items-center gap-1">
                                                             {product.name}
                                                             {isCalendarOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                                                         </button>
@@ -216,15 +172,30 @@ export default function InventoryTable() {
                                                     </div>
                                                     <div className="text-right">
                                                         <div className={`text-2xl font-bold ${isLowStock ? 'text-red-600' : 'text-blue-600'}`}>
-                                                            {totalStock.toLocaleString()}
+                                                            {currentStock.toLocaleString()}
                                                         </div>
                                                         <div className="text-[10px] text-gray-400">現在在庫</div>
                                                     </div>
                                                 </div>
 
+                                                {/* RESTORED UI STATS */}
                                                 <div className="grid grid-cols-3 gap-2 text-xs mb-3 bg-gray-50 p-2 rounded border border-gray-100">
-                                                    {/* Simplifications for Standalone */}
-                                                    <div><span className="text-gray-400 block text-[10px]">発注点</span><span className="font-bold">{rp.toLocaleString()}</span></div>
+                                                    <div>
+                                                        <span className="text-gray-400 block text-[10px]">最新ロット</span>
+                                                        <span className="font-mono font-bold text-gray-600">{latestLot}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-gray-400 block text-[10px]">発注点</span>
+                                                        <span className={`font-bold ${isLowStock ? 'text-red-500' : 'text-gray-700'}`}>
+                                                            {product.reorderPoint || '-'}
+                                                        </span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-gray-400 block text-[10px]">平均出庫</span>
+                                                        <span className="text-gray-700 font-medium">
+                                                            {product.avgDailyOut || '-'}
+                                                        </span>
+                                                    </div>
                                                 </div>
 
                                                 <div className="space-y-2">
@@ -237,8 +208,8 @@ export default function InventoryTable() {
                                                     />
                                                     <button
                                                         onClick={() => {
-                                                            setAdjustTarget({ id: product.id, name: product.name, currentStock: totalStock });
-                                                            setAdjustValue(totalStock);
+                                                            setAdjustTarget({ id: product.id, name: product.name, currentStock });
+                                                            setAdjustValue(currentStock);
                                                         }}
                                                         className="w-full py-2 flex items-center justify-center gap-2 text-xs font-bold text-gray-600 bg-gray-100 rounded hover:bg-gray-200 border border-gray-200"
                                                     >
@@ -267,55 +238,75 @@ export default function InventoryTable() {
                                                                 <tbody>
                                                                     {(() => {
                                                                         // -----------------------------------------------------------------
-                                                                        // STRICT V15.1: INLINE RENDER LOOP (The Heart)
+                                                                        // STRICT V16.1: INLINE RENDER LOOP RESTORED
                                                                         // -----------------------------------------------------------------
                                                                         let m = viewMonth;
                                                                         let y = viewYear;
                                                                         let daysInMonth = new Date(y, m, 0).getDate();
-                                                                        let currentStock = startStock; // Initialized from getStockBeforeMonth
+
+                                                                        // Calculate Stock at START of this month for the render loop
+                                                                        // (We iterate days and modify 'stock' variable)
+                                                                        // 1. Calculate stock from ALL prev activity
+                                                                        let renderStock = 0; // Or better, calculate EXACTLY based on transactions < StartOfMonth
+
+                                                                        // We can do this efficiently:
+                                                                        const startOfMonth = new Date(y, m - 1, 1);
+
+                                                                        // Filter product txs once
+                                                                        const pTxs = allTransactions.filter(t => String(t.productId) === String(product.id));
+
+                                                                        pTxs.forEach(t => {
+                                                                            const tDateRaw = (t.date || '').split('T')[0].replace(/\//g, '-');
+                                                                            const tDate = new Date(tDateRaw);
+                                                                            if (tDate < startOfMonth) {
+                                                                                const qty = parseInt(t.quantity, 10) || 0;
+                                                                                const type = (t.type || '').toLowerCase();
+                                                                                if (type === 'in' || type === 'adjust') renderStock += qty;
+                                                                                else if (type === 'out' || type === '出庫入力' || type === 'sample') renderStock -= qty;
+                                                                            }
+                                                                        });
 
                                                                         return Array.from({ length: daysInMonth }, (_, i) => i + 1).map((d) => {
-                                                                            // 1. Date Key
+                                                                            // 1. Date Key & Math
                                                                             const mStr = String(m).padStart(2, '0');
                                                                             const dStr = String(d).padStart(2, '0');
                                                                             const dayKey = `${y}-${mStr}-${dStr}`;
 
-                                                                            // 2. Filter (Normalize / to -)
-                                                                            const dayData = allTransactions.filter(t => {
-                                                                                const tDateRaw = (t.date || '').split('T')[0];
-                                                                                const tDate = tDateRaw.replace(/\//g, '-');
-                                                                                return tDate === dayKey && String(t.productId) === String(product.id);
+                                                                            // 2. Filter Txs (Strict Match)
+                                                                            const dayTxs = pTxs.filter(t => {
+                                                                                const tDate = (t.date || '').replace(/\//g, '-').split('T')[0];
+                                                                                return tDate === dayKey;
                                                                             });
 
                                                                             // 3. Sum (Inline)
                                                                             let dIn = 0, dOut = 0, dSample = 0;
-                                                                            const bossDetails = []; // Accumulate for alert
+                                                                            const bossDetails = [];
 
-                                                                            dayData.forEach(t => {
-                                                                                const q = Number(t.quantity) || 0;
+                                                                            dayTxs.forEach(t => {
+                                                                                const qty = Number(t.quantity) || 0;
                                                                                 const type = (t.type || '').toLowerCase(); // Safety lowerCase
 
                                                                                 if (type === 'in' || type === 'adjust') {
                                                                                     if (type === 'adjust') {
-                                                                                        if (q >= 0) dIn += q;
-                                                                                        else dOut += Math.abs(q);
+                                                                                        if (qty >= 0) dIn += qty;
+                                                                                        else dOut += Math.abs(qty);
                                                                                     } else {
-                                                                                        dIn += q;
+                                                                                        dIn += qty;
                                                                                     }
                                                                                 } else if (type === 'out' || type === '出庫入力') {
                                                                                     if (t.isSample) {
-                                                                                        dSample += q;
+                                                                                        dSample += qty;
                                                                                     } else {
-                                                                                        dOut += q;
+                                                                                        dOut += qty;
                                                                                         if (t.bossId) bossDetails.push(t.bossId);
                                                                                     }
                                                                                 } else if (type === 'sample') {
-                                                                                    dSample += q;
+                                                                                    dSample += qty;
                                                                                 }
                                                                             });
 
                                                                             // 4. Update Stock
-                                                                            currentStock = currentStock + dIn - dOut - dSample;
+                                                                            renderStock = renderStock + dIn - dOut - dSample;
 
                                                                             // Styling
                                                                             const dateObj = new Date(y, m - 1, d);
@@ -327,7 +318,7 @@ export default function InventoryTable() {
 
                                                                             // Alert Handler
                                                                             const handleBossClick = () => {
-                                                                                alert(`【出庫詳細】\n${bossDetails.length > 0 ? bossDetails.join('\n') : '詳細なし'}`);
+                                                                                alert(`【BOSS ID / お届け先】\n${bossDetails.length > 0 ? bossDetails.join('\n') : '詳細なし'}`);
                                                                             };
 
                                                                             return (
@@ -368,7 +359,7 @@ export default function InventoryTable() {
 
                                                                                     {/* STOCK */}
                                                                                     <td className="p-1 border-l border-gray-100 font-bold text-gray-800">
-                                                                                        {currentStock}
+                                                                                        {renderStock}
                                                                                     </td>
                                                                                 </tr>
                                                                             );
