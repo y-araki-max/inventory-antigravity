@@ -36,35 +36,20 @@ export default function InventoryTable() {
     // HELPERS
     // -------------------------------------------------------------------------
     const getStockContext = (productId) => {
-        // Calculate "Current Stock" (Total)
         let stock = 0;
         let latestLot = '-';
 
-        // Use all transactions for total stock
-        // Also find latest LOT (from IN transactions)
         const productTxs = allTransactions.filter(t => String(t.productId) === String(productId));
 
-        // Sort by date ascending to calc stock properly over time, 
-        // but for "Latest Lot" we want the last one.
-        // Let's just iterate once.
         productTxs.forEach(t => {
             const qty = parseInt(t.quantity, 10) || 0;
             const type = (t.type || '').toLowerCase();
 
             if (type === 'in' || type === 'adjust') {
                 if (type === 'adjust') {
-                    if (qty >= 0) stock += qty;
-                    else stock += Math.abs(qty); // Treating negative adjust as ADD if logic requires, 
-                    // but usually stock + qty (where qty is +/-).
-                    // Wait, previous logic was strictly separation.
-                    // User code in v16.1 prompt says: 
-                    // "dailyIn = ... sum(t.quantity)" 
-                    // Let's stick to simple: Stock += qty (signed).
-                    // If user input 4816 as 'in', it adds.
                     stock += qty;
                 } else {
                     stock += qty;
-                    // Update Latest Lot if present
                     if (t.lot) latestLot = t.lot;
                 }
             } else if (type === 'out' || type === '出庫入力' || type === 'sample') {
@@ -125,7 +110,7 @@ export default function InventoryTable() {
     return (
         <div className="pb-32 p-2 bg-gray-50 min-h-screen">
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 ml-2 mr-2">
-                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v16.1)</h1>
+                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v16.2)</h1>
                 <div className="flex items-center gap-2 bg-white p-2 rounded shadow-sm border border-gray-200">
                     <Calendar size={18} className="text-blue-600" />
                     <span className="text-xs font-bold text-gray-500">表示月:</span>
@@ -178,7 +163,6 @@ export default function InventoryTable() {
                                                     </div>
                                                 </div>
 
-                                                {/* RESTORED UI STATS */}
                                                 <div className="grid grid-cols-3 gap-2 text-xs mb-3 bg-gray-50 p-2 rounded border border-gray-100">
                                                     <div>
                                                         <span className="text-gray-400 block text-[10px]">最新ロット</span>
@@ -238,44 +222,56 @@ export default function InventoryTable() {
                                                                 <tbody>
                                                                     {(() => {
                                                                         // -----------------------------------------------------------------
-                                                                        // STRICT V16.1: INLINE RENDER LOOP RESTORED
+                                                                        // STRICT V16.2: ZERO-PADDING AGNOSTIC DATE MATCHING & CALCULATIONS
                                                                         // -----------------------------------------------------------------
                                                                         let m = viewMonth;
                                                                         let y = viewYear;
                                                                         let daysInMonth = new Date(y, m, 0).getDate();
 
-                                                                        // Calculate Stock at START of this month for the render loop
-                                                                        // (We iterate days and modify 'stock' variable)
-                                                                        // 1. Calculate stock from ALL prev activity
-                                                                        let renderStock = 0; // Or better, calculate EXACTLY based on transactions < StartOfMonth
-
-                                                                        // We can do this efficiently:
+                                                                        // START OF MONTH for stock calculation base
                                                                         const startOfMonth = new Date(y, m - 1, 1);
 
-                                                                        // Filter product txs once
+                                                                        // Filter product txs once for performance
                                                                         const pTxs = allTransactions.filter(t => String(t.productId) === String(product.id));
 
+                                                                        // Calculate Stock at START of this month
+                                                                        let renderStock = 0;
                                                                         pTxs.forEach(t => {
-                                                                            const tDateRaw = (t.date || '').split('T')[0].replace(/\//g, '-');
+                                                                            // Normalize to date object for comparison < StartOfMonth
+                                                                            // Use slash replacement to valid date parsing
+                                                                            const tDateRaw = (t.date || '').split('T')[0].replace(/-/g, '/'); // replace to slash for JS Date safety
                                                                             const tDate = new Date(tDateRaw);
+
                                                                             if (tDate < startOfMonth) {
                                                                                 const qty = parseInt(t.quantity, 10) || 0;
                                                                                 const type = (t.type || '').toLowerCase();
                                                                                 if (type === 'in' || type === 'adjust') renderStock += qty;
-                                                                                else if (type === 'out' || type === '出庫入力' || type === 'sample') renderStock -= qty;
+                                                                                else if (type === 'out' || type === '出庫入力' || type === 'outbound' || type === 'sample') renderStock -= qty;
                                                                             }
                                                                         });
 
                                                                         return Array.from({ length: daysInMonth }, (_, i) => i + 1).map((d) => {
-                                                                            // 1. Date Key & Math
-                                                                            const mStr = String(m).padStart(2, '0');
-                                                                            const dStr = String(d).padStart(2, '0');
-                                                                            const dayKey = `${y}-${mStr}-${dStr}`;
+                                                                            // 1. Prepare Target Date Keys (Both Padded and Non-Padded)
+                                                                            const dStr = String(d);
+                                                                            const dStrPad = String(d).padStart(2, '0');
+                                                                            const mStr = String(m);
+                                                                            const mStrPad = String(m).padStart(2, '0');
 
-                                                                            // 2. Filter Txs (Strict Match)
+                                                                            // Formats: YYYY/M/D and YYYY/MM/DD
+                                                                            const slashSimple = `${y}/${mStr}/${dStr}`;
+                                                                            const slashPadded = `${y}/${mStrPad}/${dStrPad}`;
+
+                                                                            // 2. Filter Transactions (Robust Match)
                                                                             const dayTxs = pTxs.filter(t => {
-                                                                                const tDate = (t.date || '').replace(/\//g, '-').split('T')[0];
-                                                                                return tDate === dayKey;
+                                                                                if (!t.date) return false;
+                                                                                // Normalize transaction date to Slashes for comparison
+                                                                                // (Assumes stored dates are YYYY-MM-DD or YYYY/MM/DD or ISO)
+                                                                                const tDateSlash = t.date.split('T')[0].replaceAll('-', '/');
+
+                                                                                // Compare against both formats
+                                                                                // Logic: "2026/2/18" === "2026/2/18" OR "2026/02/18" === "2026/02/18"
+                                                                                // If data is "2026/02/18" and target is "2026/2/18" (Simple), they won't match strictly unless we check both.
+                                                                                return tDateSlash === slashSimple || tDateSlash === slashPadded;
                                                                             });
 
                                                                             // 3. Sum (Inline)
@@ -283,13 +279,13 @@ export default function InventoryTable() {
                                                                             const bossDetails = [];
 
                                                                             dayTxs.forEach(t => {
-                                                                                const qty = Number(t.quantity) || 0;
-                                                                                const type = (t.type || '').toLowerCase(); // Safety lowerCase
+                                                                                const qty = Number(t.quantity) || 0; // Use Number() as requested
+                                                                                const type = (t.type || '').toLowerCase();
 
                                                                                 if (type === 'in' || type === 'adjust') {
                                                                                     if (type === 'adjust') {
                                                                                         if (qty >= 0) dIn += qty;
-                                                                                        else dOut += Math.abs(qty);
+                                                                                        else dOut += Math.abs(qty); // Treat neg adjust as Out
                                                                                     } else {
                                                                                         dIn += qty;
                                                                                     }
@@ -298,6 +294,7 @@ export default function InventoryTable() {
                                                                                         dSample += qty;
                                                                                     } else {
                                                                                         dOut += qty;
+                                                                                        // Boss ID Logic
                                                                                         if (t.bossId) bossDetails.push(t.bossId);
                                                                                     }
                                                                                 } else if (type === 'sample') {
@@ -322,7 +319,7 @@ export default function InventoryTable() {
                                                                             };
 
                                                                             return (
-                                                                                <tr key={`${dayKey}-${product.id}`} className={`${rowClass} border-b border-gray-100 last:border-0`}>
+                                                                                <tr key={`${slashPadded}-${product.id}`} className={`${rowClass} border-b border-gray-100 last:border-0`}>
                                                                                     <td className={`p-1 text-center ${textClass}`}>{d}</td>
 
                                                                                     {/* IN */}
