@@ -55,11 +55,11 @@ export const PRODUCTS = [
     { id: 304, category: "ミネラル", name: "ヘム鉄", fullName: "ヘム鉄", reorderPoint: 5500, avgDailyOut: 1000 },
 
     // --- オプショナル① (アンチ, プテロ, NMN, Q10, リポ酸) ---
-    { id: 401, category: "オプショナル①", name: "アンチ", fullName: "アンチオキシダント", reorderPoint: '-', avgDailyOut: '-' }, // No Data provided, default -
-    { id: 402, category: "オプショナル①", name: "プテロ", fullName: "プテロスチルベン", reorderPoint: '-', avgDailyOut: '-' }, // No Data -
+    { id: 401, category: "オプショナル①", name: "アンチ", fullName: "アンチオキシダント", reorderPoint: 660, avgDailyOut: 120 },
+    { id: 402, category: "オプショナル①", name: "プテロ", fullName: "プテロスチルベン", reorderPoint: 550, avgDailyOut: 100 },
     { id: 403, category: "オプショナル①", name: "NMN", fullName: "NMN", reorderPoint: 2475, avgDailyOut: 450 },
-    { id: 404, category: "オプショナル①", name: "Q10", fullName: "コエンザイムQ10", reorderPoint: '-', avgDailyOut: '-' }, // No Data -
-    { id: 405, category: "オプショナル①", name: "リポ酸", fullName: "α-リポ酸", reorderPoint: '-', avgDailyOut: '-' }, // No Data -
+    { id: 404, category: "オプショナル①", name: "Q10", fullName: "コエンザイムQ10", reorderPoint: 2200, avgDailyOut: 400 },
+    { id: 405, category: "オプショナル①", name: "リポ酸", fullName: "α-リポ酸", reorderPoint: 855, avgDailyOut: 190 },
 
     // --- オプショナル② (グアガム, シンバイオ, ビフィ, 有胞子) ---
     { id: 501, category: "オプショナル②", name: "グアガム", fullName: "サンファイバー（グアガム）", reorderPoint: 1100, avgDailyOut: 200 },
@@ -82,7 +82,7 @@ export const PRODUCTS = [
     { id: 607, category: "オプショナル④", name: "抹茶", fullName: "抹茶", reorderPoint: '-', avgDailyOut: '-' }, // No Data -
 
     // --- 他社商品 ---
-    { id: 701, category: "他社商品", name: "エナジー", fullName: "エナジーアシストQ10", reorderPoint: '-', avgDailyOut: '-' }, // No Data -
+    { id: 701, category: "他社商品", name: "エナジー", fullName: "エナジーアシストQ10", reorderPoint: 60, avgDailyOut: 40 },
     { id: 702, category: "他社商品", name: "エグノリジン", fullName: "エグノリジン", reorderPoint: 40, avgDailyOut: 20 },
 
     // --- 本 ---
