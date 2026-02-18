@@ -230,5 +230,13 @@ export const useInventory = () => {
         loadInventory();
     };
 
-    return { inventory, loading, refresh: loadInventory, updateMemo, adjustStock };
+    return {
+        inventory,
+        loading,
+        refresh: loadInventory,
+        updateMemo,
+        adjustStock,
+        viewYear, setViewYear,
+        viewMonth, setViewMonth
+    };
 };
