@@ -257,29 +257,39 @@ export default function InventoryTable() {
                                                                                     <td className="p-1 border-l border-gray-100 text-blue-600">
                                                                                         {dayData && dayData.in > 0 ? dayData.in : ''}
                                                                                     </td>
-                                                                                    {/* Strict v13: Large Purchase Indicator */}
+                                                                                    {/* Strict v13: Large Purchase Indicator & Data Sync */}
                                                                                     <td className="p-1 border-l border-gray-100 text-gray-600 relative group">
                                                                                         {dayData && dayData.out > 0 ? dayData.out : ''}
-                                                                                        {dayData && dayData.out >= 10 && (
+                                                                                        {dayData && (dayData.out >= 10) && (
                                                                                             <>
-                                                                                                <span className="absolute top-0 right-0 text-[8px] text-green-500 transform translate-x-1 -translate-y-1">
-                                                                                                    🚩
-                                                                                                </span>
+                                                                                                {/* Triangle Marker */}
+                                                                                                <span className="absolute top-0 right-0 w-0 h-0 border-t-[6px] border-r-[6px] border-t-red-500 border-r-transparent transform rotate-0"></span>
+
                                                                                                 {/* Tooltip */}
-                                                                                                <div className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 p-2 bg-gray-800 text-white text-xs rounded shadow-lg z-50 whitespace-nowrap min-w-[150px]">
-                                                                                                    <div className="font-bold border-b border-gray-600 mb-1 pb-1">内訳 (計{dayData.out}個)</div>
-                                                                                                    {dayData.outDetails && dayData.outDetails.map((detail, idx) => (
-                                                                                                        <div key={idx} className="flex justify-between">
-                                                                                                            <span>{detail.bossId}</span>
-                                                                                                            <span className="font-bold">{detail.quantity}個</span>
-                                                                                                        </div>
-                                                                                                    ))}
+                                                                                                <div className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 p-2 bg-gray-900 text-white text-xs rounded shadow-lg z-50 whitespace-nowrap min-w-[120px]">
+                                                                                                    <div className="font-bold border-b border-gray-600 mb-1 pb-1 text-yellow-400">
+                                                                                                        合計: {dayData.out}個
+                                                                                                    </div>
+                                                                                                    {dayData.outDetails && dayData.outDetails.length > 0 ? (
+                                                                                                        dayData.outDetails.map((d, dx) => (
+                                                                                                            <div key={dx} className="flex justify-between gap-4">
+                                                                                                                <span>{d.bossId || '指定なし'}</span>
+                                                                                                                <span className="font-bold">{d.quantity}</span>
+                                                                                                            </div>
+                                                                                                        ))
+                                                                                                    ) : (
+                                                                                                        <div className="text-gray-400 italic">詳細なし</div>
+                                                                                                    )}
                                                                                                 </div>
                                                                                             </>
                                                                                         )}
                                                                                     </td>
                                                                                     <td className="p-1 border-l border-gray-100 text-green-600">
                                                                                         {dayData && dayData.sample > 0 ? dayData.sample : ''}
+                                                                                    </td>
+                                                                                    {/* Running Stock Calculation display */}
+                                                                                    <td className="p-1 border-l border-gray-100 font-bold text-gray-800">
+                                                                                        {dayData ? dayData.stock : '-'}
                                                                                     </td>
                                                                                     <td className="p-1 border-l border-gray-100 font-bold text-gray-800">
                                                                                         {dayData ? dayData.stock : '-'}
