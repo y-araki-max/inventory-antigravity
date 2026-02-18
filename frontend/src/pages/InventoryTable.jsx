@@ -28,7 +28,7 @@ export default function InventoryTable() {
         const txRaw = localStorage.getItem('inventory_history');
         const txData = JSON.parse(txRaw || '[]');
 
-        console.log("=== STRICT V26.0 DATA LOAD ===");
+        console.log("=== STRICT V26.0 (Real Fix) DATA LOAD ===");
         console.log("Key: inventory_history");
         console.log("Count:", txData.length);
 
@@ -50,9 +50,11 @@ export default function InventoryTable() {
         return false;
     };
 
-    // STRICT V26.0: Final Lot Extraction Logic
+    // STRICT V26.0 (Real Fix): Final Lot Extraction Logic
+    // User identified "lotNo" as the correct key.
     const getLotString = (t) => {
-        // Priority: lot > memo > lotNumber
+        // Priority: lotNo > lot > memo > lotNumber
+        if (t.lotNo) return t.lotNo;
         if (t.lot) return t.lot;
         if (t.memo) return t.memo;
         if (t.lotNumber) return t.lotNumber;
@@ -63,7 +65,7 @@ export default function InventoryTable() {
     const getStockContext = (product) => {
         let stock = 0;
         let latestLot = '-';
-        let latestInDate = ''; // comparisons with ISO strings work fine
+        let latestInDate = '';
 
         allTransactions.forEach(t => {
             if (!isProductMatch(t, product)) return;
@@ -80,9 +82,9 @@ export default function InventoryTable() {
                     if (type === 'IN') {
                         // Find the NEWEST date
                         const tDate = t.date || '';
-                        if (tDate >= latestInDate) { // >= to catch same-day updates if they appear later in array?
+                        if (tDate >= latestInDate) {
                             latestInDate = tDate;
-                            latestLot = getLotString(t);
+                            latestLot = getLotString(t); // Uses lotNo
                         }
                     }
                 }
@@ -145,7 +147,7 @@ export default function InventoryTable() {
     return (
         <div className="pb-32 p-2 bg-gray-50 min-h-screen">
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 ml-2 mr-2">
-                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v26.0)</h1>
+                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v26.0 Fix)</h1>
                 <div className="flex items-center gap-2 bg-white p-2 rounded shadow-sm border border-gray-200">
                     <Calendar size={18} className="text-blue-600" />
                     <span className="text-xs font-bold text-gray-500">表示月:</span>
@@ -257,7 +259,7 @@ export default function InventoryTable() {
                                                                 <tbody>
                                                                     {(() => {
                                                                         // -----------------------------------------------------------------
-                                                                        // STRICT V26.0: Final Integration
+                                                                        // STRICT V26.0 (Real Fix): Final Integration
                                                                         // -----------------------------------------------------------------
                                                                         let m = viewMonth;
                                                                         let y = viewYear;
@@ -306,7 +308,7 @@ export default function InventoryTable() {
                                                                                         else dOut += Math.abs(qty);
                                                                                     } else {
                                                                                         dIn += qty;
-                                                                                        // STRICT V26.0: getLotString helper logic
+                                                                                        // STRICT V26.0 (Real Fix): Uses lotNo
                                                                                         const lotStr = getLotString(t);
                                                                                         inboundDetails.push(`${lotStr} (${qty})`);
                                                                                     }
