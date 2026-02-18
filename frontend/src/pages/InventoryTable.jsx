@@ -28,7 +28,7 @@ export default function InventoryTable() {
         const txRaw = localStorage.getItem('inventory_history');
         const txData = JSON.parse(txRaw || '[]');
 
-        console.log("=== STRICT V23.0+ V25.0 DATA LOAD ===");
+        console.log("=== STRICT V26.0 DATA LOAD ===");
         console.log("Key: inventory_history");
         console.log("Count:", txData.length);
 
@@ -50,11 +50,20 @@ export default function InventoryTable() {
         return false;
     };
 
-    // STRICT V25.0: Latest Lot Extraction (Refined)
+    // STRICT V26.0: Final Lot Extraction Logic
+    const getLotString = (t) => {
+        // Priority: lot > memo > lotNumber
+        if (t.lot) return t.lot;
+        if (t.memo) return t.memo;
+        if (t.lotNumber) return t.lotNumber;
+        return '-';
+    };
+
+    // STRICT V26.0: Latest Lot Extraction
     const getStockContext = (product) => {
         let stock = 0;
         let latestLot = '-';
-        let latestInDate = null;
+        let latestInDate = ''; // comparisons with ISO strings work fine
 
         allTransactions.forEach(t => {
             if (!isProductMatch(t, product)) return;
@@ -67,13 +76,13 @@ export default function InventoryTable() {
                     stock += qty;
                 } else {
                     stock += qty;
-                    // STRICT V25.0: Check for Latest Lot (IN)
+                    // STRICT V26.0: Check for Latest Lot (IN)
                     if (type === 'IN') {
-                        // Compare dates to find the newest transaction
-                        if (!latestInDate || (t.date && t.date > latestInDate)) {
-                            latestInDate = t.date;
-                            // PRIORITIZE "lot" as seen in image
-                            latestLot = t.lot || t.lotNumber || t.memo || '-';
+                        // Find the NEWEST date
+                        const tDate = t.date || '';
+                        if (tDate >= latestInDate) { // >= to catch same-day updates if they appear later in array?
+                            latestInDate = tDate;
+                            latestLot = getLotString(t);
                         }
                     }
                 }
@@ -136,7 +145,7 @@ export default function InventoryTable() {
     return (
         <div className="pb-32 p-2 bg-gray-50 min-h-screen">
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 ml-2 mr-2">
-                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v25.0)</h1>
+                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v26.0)</h1>
                 <div className="flex items-center gap-2 bg-white p-2 rounded shadow-sm border border-gray-200">
                     <Calendar size={18} className="text-blue-600" />
                     <span className="text-xs font-bold text-gray-500">表示月:</span>
@@ -192,7 +201,7 @@ export default function InventoryTable() {
                                                 <div className="grid grid-cols-3 gap-2 text-xs mb-3 bg-gray-50 p-2 rounded border border-gray-100">
                                                     <div>
                                                         <span className="text-gray-400 block text-[10px]">最新ロット</span>
-                                                        <span className="font-mono font-bold text-gray-600">{latestLot}</span>
+                                                        <span className="font-bold text-gray-700">{latestLot}</span>
                                                     </div>
                                                     <div>
                                                         <span className="text-gray-400 block text-[10px]">発注点</span>
@@ -248,7 +257,7 @@ export default function InventoryTable() {
                                                                 <tbody>
                                                                     {(() => {
                                                                         // -----------------------------------------------------------------
-                                                                        // STRICT V25.0: Lot Precision
+                                                                        // STRICT V26.0: Final Integration
                                                                         // -----------------------------------------------------------------
                                                                         let m = viewMonth;
                                                                         let y = viewYear;
@@ -297,9 +306,9 @@ export default function InventoryTable() {
                                                                                         else dOut += Math.abs(qty);
                                                                                     } else {
                                                                                         dIn += qty;
-                                                                                        // STRICT v25.0: Collect Lot Info (lot || lotNumber || memo)
-                                                                                        const info = t.lot || t.lotNumber || t.memo || '-';
-                                                                                        inboundDetails.push(`${info} (${qty})`);
+                                                                                        // STRICT V26.0: getLotString helper logic
+                                                                                        const lotStr = getLotString(t);
+                                                                                        inboundDetails.push(`${lotStr} (${qty})`);
                                                                                     }
                                                                                 } else if (type === 'OUT' || type === '出庫入力') {
                                                                                     if (t.isSample) {
@@ -339,7 +348,7 @@ export default function InventoryTable() {
                                                                                     {/* IN (Click enabled for Lot Details) */}
                                                                                     <td
                                                                                         className="p-1 border-l border-gray-100 text-blue-600 font-medium cursor-pointer hover:bg-blue-50"
-                                                                                        title={inboundDetails.join(', ')} // Tooltip added
+                                                                                        title={inboundDetails.join(', ')}
                                                                                         onClick={dIn > 0 ? handleInboundClick : undefined}
                                                                                     >
                                                                                         {dIn > 0 ? dIn : ''}
