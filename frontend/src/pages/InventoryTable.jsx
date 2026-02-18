@@ -176,7 +176,7 @@ export default function InventoryTable() {
     return (
         <div className="pb-32 p-2 bg-gray-50 min-h-screen">
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 ml-2 mr-2">
-                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v29.0)</h1>
+                <h1 className="text-xl font-bold text-gray-800 mb-4 md:mb-0">在庫一覧 (Strict v31.0)</h1>
                 <div className="flex items-center gap-2 bg-white p-2 rounded shadow-sm border border-gray-200">
                     <Calendar size={18} className="text-blue-600" />
                     <span className="text-xs font-bold text-gray-500">表示月:</span>
@@ -208,15 +208,10 @@ export default function InventoryTable() {
                                         // STRICT V27.0: Use FIFO Context
                                         const { stock: currentStock, activeLot } = getActiveStockContext(product);
 
-                                        // STRICT v29.0: Removed Low Stock Warning Colors
-                                        // const rp = product.reorderPoint !== '-' ? parseInt(product.reorderPoint) : 0;
-                                        // const isLowStock = rp > 0 && currentStock <= rp;
-
                                         const isCalendarOpen = expandedProducts.has(product.id);
                                         const memo = memos[product.id] || '';
 
                                         return (
-                                            // Removed border-red-100 bg-red-50/50 logic
                                             <div key={product.id} className="p-4 rounded-lg border-2 transition-all border-gray-100 bg-white">
                                                 <div className="flex justify-between items-start mb-3">
                                                     <div>
@@ -227,7 +222,6 @@ export default function InventoryTable() {
                                                         <p className="text-[10px] text-gray-400 mt-1">{product.fullName}</p>
                                                     </div>
                                                     <div className="text-right">
-                                                        {/* Removed text-red-600 logic, always use blue or default */}
                                                         <div className="text-2xl font-bold text-blue-600">
                                                             {currentStock.toLocaleString()}
                                                         </div>
@@ -242,7 +236,6 @@ export default function InventoryTable() {
                                                     </div>
                                                     <div>
                                                         <span className="text-gray-400 block text-[10px]">発注点</span>
-                                                        {/* Removed text-red-500 */}
                                                         <span className="font-bold text-gray-700">
                                                             {product.reorderPoint || '-'}
                                                         </span>
@@ -294,9 +287,6 @@ export default function InventoryTable() {
                                                                 </thead>
                                                                 <tbody>
                                                                     {(() => {
-                                                                        // -----------------------------------------------------------------
-                                                                        // STRICT V27.0: Active Lot + Visuals
-                                                                        // -----------------------------------------------------------------
                                                                         let m = viewMonth;
                                                                         let y = viewYear;
                                                                         let daysInMonth = new Date(y, m, 0).getDate();
@@ -353,7 +343,10 @@ export default function InventoryTable() {
                                                                                         dSample += qty;
                                                                                     } else {
                                                                                         dOut += qty;
-                                                                                        if (t.bossId) bossDetails.push(t.bossId);
+                                                                                        // STRICT V31.0: Filter only qty >= 10 for BOSS Details
+                                                                                        if (qty >= 10 && t.bossId) {
+                                                                                            bossDetails.push(`BOSS ID: ${t.bossId} (${qty}個)`);
+                                                                                        }
                                                                                     }
                                                                                 } else if (type === 'SAMPLE') {
                                                                                     dSample += qty;
@@ -371,9 +364,15 @@ export default function InventoryTable() {
                                                                             const rowClass = isSat ? 'bg-blue-50' : isSun ? 'bg-red-50' : (d % 2 === 0 ? 'bg-white' : 'bg-gray-50');
                                                                             const textClass = isSat ? 'text-blue-600 font-bold' : isSun ? 'text-red-600 font-bold' : 'text-gray-700 font-bold';
 
+                                                                            // STRICT V31.0: Indicator Condition
+                                                                            const hasHighVolumeOut = bossDetails.length > 0;
+
                                                                             // Click Handlers
                                                                             const handleBossClick = () => {
-                                                                                alert(`【BOSS ID / お届け先】\n${bossDetails.length > 0 ? bossDetails.join('\n') : '詳細なし'}`);
+                                                                                // STRICT V31.0: Only show if there are high volume details
+                                                                                if (hasHighVolumeOut) {
+                                                                                    alert(`【10個以上の出庫詳細】\n${bossDetails.join('\n')}`);
+                                                                                }
                                                                             };
                                                                             const handleInboundClick = () => {
                                                                                 alert(`【入庫詳細 / ロット】\n${inboundDetails.length > 0 ? inboundDetails.join('\n') : '詳細なし'}`);
@@ -392,15 +391,15 @@ export default function InventoryTable() {
                                                                                         {dIn > 0 ? dIn : ''}
                                                                                     </td>
 
-                                                                                    {/* OUT & BOSS INDICATOR */}
+                                                                                    {/* OUT & BOSS INDICATOR (STRICT V31.0) */}
                                                                                     <td
                                                                                         className="p-1 border-l border-gray-100 text-gray-600 relative group cursor-pointer"
-                                                                                        onClick={dOut >= 10 ? handleBossClick : undefined}
+                                                                                        onClick={hasHighVolumeOut ? handleBossClick : undefined}
                                                                                     >
                                                                                         {dOut > 0 ? dOut : ''}
 
-                                                                                        {/* Black Triangle for >= 10 */}
-                                                                                        {dOut >= 10 && (
+                                                                                        {/* Black Triangle for High Volume Only */}
+                                                                                        {hasHighVolumeOut && (
                                                                                             <div
                                                                                                 className="absolute top-0 right-0 pointer-events-none"
                                                                                                 style={{
