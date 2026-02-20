@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { STAFF_LIST, CATEGORIES, PRODUCTS } from '../data';
 import { BigButton } from '../components/BigButton';
