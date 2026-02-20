@@ -38,6 +38,39 @@ export default function Outbound() {
         setIsModalOpen(true);
     };
 
+    // --- ローカルストレージ：ドラフト保存機能 ---
+    // 初回マウント時に復元
+    useEffect(() => {
+        const savedDraft = localStorage.getItem('draft_outbound');
+        if (savedDraft) {
+            try {
+                const draft = JSON.parse(savedDraft);
+                if (draft.bossId) setBossId(draft.bossId);
+                if (draft.selectedStaff) setSelectedStaff(draft.selectedStaff);
+                if (draft.cart) setCart(draft.cart);
+                if (draft.isStaffSale !== undefined) setIsStaffSale(draft.isStaffSale);
+                if (draft.isBossCheck !== undefined) setIsBossCheck(draft.isBossCheck);
+                if (draft.isSample !== undefined) setIsSample(draft.isSample);
+            } catch (e) {
+                console.error('Draft restore failed', e);
+            }
+        }
+    }, []);
+
+    // ステート変更時に保存
+    useEffect(() => {
+        const draft = {
+            bossId,
+            selectedStaff,
+            cart,
+            isStaffSale,
+            isBossCheck,
+            isSample
+        };
+        localStorage.setItem('draft_outbound', JSON.stringify(draft));
+    }, [bossId, selectedStaff, cart, isStaffSale, isBossCheck, isSample]);
+    // -------------------------------------------
+
     // 数量が確定されたとき
     const handleQuantityConfirm = (qty) => {
         if (qty > 0 && currentProduct) {
@@ -84,6 +117,7 @@ export default function Outbound() {
     // 全削除
     const clearCart = () => {
         if (window.confirm('本当に全て削除しますか？')) {
+            localStorage.removeItem('draft_outbound');
             setCart([]);
             setIsCartOpen(false);
         }
@@ -151,6 +185,7 @@ export default function Outbound() {
 
             alert('送信しました！');
             // クリア
+            localStorage.removeItem('draft_outbound'); // ドラフト削除
             setCart([]);
             setImageData(null);
             setBossId('');
@@ -199,12 +234,10 @@ export default function Outbound() {
                                 <div className="flex-1 flex items-center gap-2">
                                     <label className="text-xs text-gray-400 font-bold whitespace-nowrap">BOSS</label>
                                     <input
+                                        key="boss-id-input"
                                         type="text"
                                         value={bossId}
-                                        onChange={(e) => {
-                                            setBossId(e.target.value);
-                                            checkAndCollapseHeader(e.target.value, undefined);
-                                        }}
+                                        onChange={(e) => setBossId(e.target.value)}
                                         onBlur={() => checkAndCollapseHeader(undefined, undefined)}
                                         className="w-full text-xl font-bold border-b-2 border-gray-300 outline-none p-1"
                                         placeholder="番号"

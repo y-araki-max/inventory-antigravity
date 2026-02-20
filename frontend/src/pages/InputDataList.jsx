@@ -55,6 +55,9 @@ export default function InputDataList() {
         } catch (e) { return '-'; }
     };
 
+    // 画像表示用モーダル
+    const [viewingImage, setViewingImage] = useState(null);
+
     return (
         <div className="pb-24 p-2 min-h-screen bg-gray-50">
             <div className="flex justify-between items-center mb-4">
@@ -95,6 +98,7 @@ export default function InputDataList() {
                                 <th className="px-1 py-2 w-10 text-center whitespace-nowrap">種別</th>
                                 <th className="px-1 py-2 w-16 whitespace-nowrap">ID / 担当者</th>
                                 <th className="px-1 py-2 w-auto">注文内容</th>
+                                <th className="px-1 py-2 w-8 text-center whitespace-nowrap">画像</th>
                                 <th className="px-1 py-2 w-8 text-center whitespace-nowrap">社販</th>
                                 <th className="px-1 py-2 w-8 text-center whitespace-nowrap">BOSS</th>
                                 <th className="px-1 py-2 w-8 text-center">削除</th>
@@ -138,6 +142,18 @@ export default function InputDataList() {
                                             </div>
                                         </td>
 
+                                        {/* 画像ボタン */}
+                                        <td className="px-1 py-2 text-center align-top">
+                                            {item.imageData && (
+                                                <button
+                                                    onClick={() => setViewingImage(item.imageData)}
+                                                    className="text-gray-500 hover:text-blue-600 transition-colors"
+                                                >
+                                                    📷
+                                                </button>
+                                            )}
+                                        </td>
+
                                         {/* 社販チェック */}
                                         <td className="px-1 py-2 text-center align-top">
                                             {item.isStaffSale && (
@@ -170,6 +186,28 @@ export default function InputDataList() {
                             })}
                         </tbody>
                     </table>
+                </div>
+            )}
+
+            {/* 画像表示モーダル */}
+            {viewingImage && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+                    onClick={() => setViewingImage(null)}
+                >
+                    <div className="relative bg-white p-2 rounded-lg shadow-2xl max-w-full max-h-[90vh] overflow-auto">
+                        <img
+                            src={viewingImage}
+                            alt="Evidence"
+                            className="max-w-full max-h-[80vh] object-contain rounded"
+                        />
+                        <button
+                            onClick={() => setViewingImage(null)}
+                            className="absolute -top-4 -right-4 bg-white text-black p-2 rounded-full shadow-lg hover:bg-gray-200 font-bold"
+                        >
+                            ✕
+                        </button>
+                    </div>
                 </div>
             )}
         </div>

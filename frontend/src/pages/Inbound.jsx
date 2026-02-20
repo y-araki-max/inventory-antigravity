@@ -47,6 +47,46 @@ export default function Inbound() {
         setLotNo(formatted);
     }, [lotYear, lotMonth, lotBranch, lotFactory]);
 
+    // --- ローカルストレージ：ドラフト保存機能 ---
+    // 初回マウント時に復元
+    useEffect(() => {
+        const savedDraft = localStorage.getItem('draft_inbound');
+        if (savedDraft) {
+            try {
+                const draft = JSON.parse(savedDraft);
+                if (draft.selectedStaff) setSelectedStaff(draft.selectedStaff);
+                if (draft.selectedCategory) setSelectedCategory(draft.selectedCategory);
+                if (draft.selectedProductId) {
+                    const product = PRODUCTS.find(p => p.id === draft.selectedProductId);
+                    if (product) setSelectedProduct(product);
+                }
+                if (draft.quantity) setQuantity(draft.quantity);
+                if (draft.lotYear) setLotYear(draft.lotYear);
+                if (draft.lotMonth) setLotMonth(draft.lotMonth);
+                if (draft.lotBranch) setLotBranch(draft.lotBranch);
+                if (draft.lotFactory) setLotFactory(draft.lotFactory);
+            } catch (e) {
+                console.error('Draft restore failed', e);
+            }
+        }
+    }, []);
+
+    // ステート変更時に保存
+    useEffect(() => {
+        const draft = {
+            selectedStaff,
+            selectedCategory,
+            selectedProductId: selectedProduct?.id,
+            quantity,
+            lotYear,
+            lotMonth,
+            lotBranch,
+            lotFactory
+        };
+        localStorage.setItem('draft_inbound', JSON.stringify(draft));
+    }, [selectedStaff, selectedCategory, selectedProduct, quantity, lotYear, lotMonth, lotBranch, lotFactory]);
+    // -------------------------------------------
+
     const handleSubmit = async () => {
         if (!selectedStaff) return alert('担当者を選んでください');
         if (!selectedProduct) return alert('商品を選んでください');
@@ -78,6 +118,7 @@ export default function Inbound() {
             alert('入庫しました！');
 
             // クリア
+            localStorage.removeItem('draft_inbound'); // ドラフト削除
             setQuantity('');
             // Reset Lot to defaults? Keep for convenience? Let's reset.
             // setLotYear(currentYear);
