@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PackageMinus, PackagePlus, List, BarChart3, Calculator } from 'lucide-react';
+import marutikun from '../assets/marutikun.png';
 
 export default function Home() {
     const navigate = useNavigate();
@@ -19,7 +20,7 @@ export default function Home() {
             {/* Header / Logo Section */}
             <div className="flex flex-col items-center mb-10">
                 <img
-                    src="/src/assets/marutikun.png"
+                    src={marutikun}
                     alt="Marutikun"
                     className="h-24 w-auto mb-4 animate-bounce-slow object-contain"
                 />
