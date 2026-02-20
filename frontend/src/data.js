@@ -1,7 +1,7 @@
 // Master Data v2.0 (Strict Fix)
 // スタッフリスト
 export const STAFF_LIST = {
-    PACKING: ['高塚', '鈴木', '山川'],
+    PACKING: ['高塚', '鈴木', '山川', '山内'],
     CS: ['田邊', '松本', '狩野', '木原', '米田'],
     PLANNING: ['熊谷', '荒河']
 };
